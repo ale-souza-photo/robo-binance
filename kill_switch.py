@@ -28,6 +28,7 @@ class KillSwitch:
         self.travado = False
         self.motivo = ""
         self._dia = None
+        self.trava_gravada = None  # None = sem trava grave; True/False = conseguiu gravar TRAVA.txt?
 
     # ---------------------------------------------------------------- eventos
     def registrar_compra(self, agora=None):
@@ -91,5 +92,7 @@ class KillSwitch:
                 with open(config.ARQUIVO_TRAVA, "w", encoding="utf-8") as f:
                     f.write(f"{datetime.now().isoformat(timespec='seconds')} {motivo}\n"
                             "Apague este arquivo so depois de entender o que aconteceu.\n")
+                self.trava_gravada = True
             except OSError:
-                pass
+                self.trava_gravada = False
+                self.motivo += f" (ATENÇÃO: não consegui criar {config.ARQUIVO_TRAVA}; não reinicie sem olhar)"

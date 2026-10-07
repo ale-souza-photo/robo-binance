@@ -166,22 +166,22 @@ class Confluencia(unittest.TestCase):
 
 
 class TravasAoVivo(unittest.TestCase):
+    CAMPOS = ("MAX_PERDAS_SEGUIDAS", "PAUSA_APOS_PERDAS_MIN", "ESFRIAR_APOS_PERDA_MIN", "MAX_TRADES_POR_DIA",
+              "PERDA_MAXIMA_TOTAL_USDT", "PERDA_MAXIMA_DIARIA_USDT", "ARQUIVO_TRAVA", "ARQUIVO_PARADA")
+
     def setUp(self):
-        self._orig = (config.MAX_PERDAS_SEGUIDAS, config.PAUSA_APOS_PERDAS_MIN, config.ESFRIAR_APOS_PERDA_MIN,
-                      config.MAX_TRADES_POR_DIA, config.PERDA_MAXIMA_TOTAL_USDT, config.PERDA_MAXIMA_DIARIA_USDT,
-                      config.ARQUIVO_TRAVA, config.ARQUIVO_PARADA)
-        config.ARQUIVO_TRAVA, config.ARQUIVO_PARADA = "/tmp/_trava_teste.txt", "/tmp/_parar_teste.txt"
-        for f in (config.ARQUIVO_TRAVA, config.ARQUIVO_PARADA):
-            try:
-                import os
-                os.remove(f)
-            except OSError:
-                pass
+        import os
+        import tempfile
+        self._orig = {c: getattr(config, c) for c in self.CAMPOS}
+        self.pasta = tempfile.mkdtemp()  # funciona em Windows, Mac e Linux
+        config.ARQUIVO_TRAVA = os.path.join(self.pasta, "TRAVA.txt")
+        config.ARQUIVO_PARADA = os.path.join(self.pasta, "PARAR.txt")
 
     def tearDown(self):
-        (config.MAX_PERDAS_SEGUIDAS, config.PAUSA_APOS_PERDAS_MIN, config.ESFRIAR_APOS_PERDA_MIN,
-         config.MAX_TRADES_POR_DIA, config.PERDA_MAXIMA_TOTAL_USDT, config.PERDA_MAXIMA_DIARIA_USDT,
-         config.ARQUIVO_TRAVA, config.ARQUIVO_PARADA) = self._orig
+        import shutil
+        for c, v in self._orig.items():
+            setattr(config, c, v)
+        shutil.rmtree(self.pasta, ignore_errors=True)
 
     def test_esfria_depois_de_perda(self):
         config.ESFRIAR_APOS_PERDA_MIN, config.MAX_PERDAS_SEGUIDAS = 15, 99
@@ -223,6 +223,16 @@ class TravasAoVivo(unittest.TestCase):
         self.assertFalse(k.pode_operar(0, agora=1))
         self.assertTrue(k.travado)
         self.assertTrue(os.path.exists(config.ARQUIVO_TRAVA))
+
+    def test_avisa_quando_nao_consegue_gravar_a_trava(self):
+        import os
+        config.ARQUIVO_TRAVA = os.path.join(self.pasta, "pasta_que_nao_existe", "TRAVA.txt")
+        config.PERDA_MAXIMA_TOTAL_USDT, config.PERDA_MAXIMA_DIARIA_USDT = 3.0, 99
+        k = KillSwitch()
+        k.registrar_resultado(-3.5, agora=0)
+        self.assertTrue(k.travado)
+        self.assertFalse(k.trava_gravada)
+        self.assertIn("ATENÇÃO", k.motivo)
 
     def test_parar_txt_trava(self):
         open(config.ARQUIVO_PARADA, "w").close()
