@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+registro.csv
+dados_*.csv
+PARAR.txt
+.env
+.env.*
+*.zip
