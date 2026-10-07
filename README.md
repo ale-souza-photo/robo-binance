@@ -23,6 +23,16 @@ A quantidade é cortada para baixo no passo permitido; ordem abaixo do mínimo �
 registrada como `RECUSADA`. No modo real, a venda usa a quantidade líquida (a Binance desconta a
 taxa em BTC na compra).
 
+## Comparar estratégias (novo)
+`python comparar.py` testa 4 estratégias (cruzamento 9/21 atual, tendência 20/50 + SMA200,
+rompimento + SMA200, reversão RSI) em 5m/15m/1h e 3 níveis de stop/alvo, com as mesmas taxas.
+- Validação "andando para frente": a config é escolhida nos blocos anteriores e testada no
+  seguinte. A coluna "PnL fora" é a que vale; "enganoso" mostra o quanto olhar o passado infla.
+- Veredito: PASSOU exige >= 40 trades fora da amostra, PnL > 0, fator de lucro >= 1,2 e
+  >= 60% dos blocos positivos. Se nenhuma passar, não ligue o modo real.
+- Reaproveita `dados_BTCUSDT_1m_180d.csv` (use `--csv` para apontar outro). Outros pares:
+  `--simbolo ETH/USDT`. Quem passar deve ser re-testado em outro período e outro par.
+
 ## Testnet da Binance (dinheiro de mentira)
 Valida ordens de verdade (mínimos, casas, taxa em BTC) sem risco. Os candles continuam vindo do
 mercado real; só as ORDENS vão para a testnet.

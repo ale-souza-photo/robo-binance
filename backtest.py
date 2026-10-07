@@ -79,8 +79,11 @@ def ler_csv(caminho):
 
 # ------------------------------------------------------------ simulação
 def simular(candles, valor=None, stop=None, alvo=None, taxa=None,
-            perda_max_dia=None, slippage=0.0, analisar=None):
-    """Simula a estratégia. Retorna (lista_de_trades, curva_de_pnl_acumulado)."""
+            perda_max_dia=None, slippage=0.0, analisar=None, sinais=None, janela=None):
+    """Simula a estratégia. Retorna (lista_de_trades, curva_de_pnl_acumulado).
+
+    `sinais` (opcional): lista de bool, um por candle (True = comprar no fechamento
+    dele). Usado pelo comparar.py. `janela`: primeiro candle simulado."""
     valor = config.VALOR_POR_ORDEM_USDT if valor is None else valor
     stop = config.STOP_PERCENT if stop is None else stop
     alvo = config.ALVO_PERCENT if alvo is None else alvo
@@ -92,7 +95,8 @@ def simular(candles, valor=None, stop=None, alvo=None, taxa=None,
     posicao = None
     pnl_dia = defaultdict(float)
 
-    for i in range(JANELA, len(candles)):
+    inicio = JANELA if janela is None else janela
+    for i in range(inicio, len(candles)):
         c = candles[i]
         dia = datetime.fromtimestamp(c["tempo"] / 1000, timezone.utc).date()
 
@@ -120,8 +124,11 @@ def simular(candles, valor=None, stop=None, alvo=None, taxa=None,
         curva.append(pnl_acum)
         if pnl_dia[dia] <= -perda_max_dia:  # kill switch diário
             continue
-        analise = analisar(candles[i - JANELA + 1:i + 1])
-        if analise["sinal"] == "COMPRA":
+        if sinais is not None:
+            comprar = sinais[i]
+        else:
+            comprar = analisar(candles[i - JANELA + 1:i + 1])["sinal"] == "COMPRA"
+        if comprar:
             preco = c["fechamento"] * (1 + slippage)
             posicao = {"preco": preco, "quantidade": valor / preco,
                        "stop": preco * (1 - stop), "alvo": preco * (1 + alvo),
