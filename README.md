@@ -23,6 +23,17 @@ A quantidade é cortada para baixo no passo permitido; ordem abaixo do mínimo �
 registrada como `RECUSADA`. No modo real, a venda usa a quantidade líquida (a Binance desconta a
 taxa em BTC na compra).
 
+## Painel gráfico (novo)
+Tela moderna no navegador, atualiza sozinha. Mostra preço e gráfico com as médias, a "pista da
+aposta" (bolinha entre STOP e ALVO), o freio do dia, estatísticas, diário e curva de resultado.
+O visual muda por modo: SIMULADO (azul), TESTNET (dourado, "dinheiro de mentira") e REAL
+(vermelho, com borda de alerta).
+- Com o robô rodando (`python main.py`), abra OUTRO terminal na MESMA pasta e rode `python painel.py`.
+- `python painel.py --demo` mostra dados fictícios, sem o robô. `--demo --modo REAL` mostra o visual do real.
+- O robô grava `estado.json` a cada ciclo; o painel lê esse arquivo e o `registro.csv`.
+- Segurança: escuta só em 127.0.0.1, não envia ordens e não vê suas chaves. O único botão de
+  ação cria/apaga o `PARAR.txt` (o robô não compra mais e encerra ao fechar a posição aberta).
+
 ## Comparar estratégias (novo)
 `python comparar.py` testa 4 estratégias (cruzamento 9/21 atual, tendência 20/50 + SMA200,
 rompimento + SMA200, reversão RSI) em 5m/15m/1h e 3 níveis de stop/alvo, com as mesmas taxas.

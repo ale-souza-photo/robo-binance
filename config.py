@@ -32,3 +32,4 @@ else:
 
 ARQUIVO_PARADA = "PARAR.txt"      # crie esse arquivo para parar o robô na hora
 ARQUIVO_LOG = "registro.csv"
+ARQUIVO_ESTADO = "estado.json"   # instantâneo ao vivo, lido pelo painel.py

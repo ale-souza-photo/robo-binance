@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="pt-BR" data-modo="TESTNET">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trader Bit · Painel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Unbounded:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A0B1E; --ink2:#12143A; --glass:rgba(23,25,62,.66); --line:rgba(165,165,255,.15);
+  --tx:#EEF0FF; --mut:#9A9CC6;
+  --violet:#8B5CF6; --aqua:#22E6C4; --coral:#FF5D7A; --gold:#FFC24B; --sky:#4CC9F0; --lime:#B8F34D;
+  --modo:var(--sky);
+  --display:'Unbounded','Trebuchet MS',system-ui,sans-serif;
+  --body:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+[data-modo="SIMULADO"]{--modo:var(--sky)}
+[data-modo="TESTNET"]{--modo:var(--gold)}
+[data-modo="REAL"]{--modo:var(--coral)}
+
+*{box-sizing:border-box;margin:0}
+html{background:var(--ink)}
+body{font-family:var(--body);color:var(--tx);min-height:100vh;background:radial-gradient(1200px 700px at 80% -10%,#1B1650 0%,transparent 60%),var(--ink);
+  overflow-x:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--modo);outline-offset:3px;border-radius:8px}
+.num{font-variant-numeric:tabular-nums}
+
+/* atmosfera: três luzes à deriva */
+.atmos{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.atmos i{position:absolute;width:46vmax;height:46vmax;border-radius:50%;filter:blur(90px);opacity:.28;animation:deriva 46s ease-in-out infinite alternate}
+.atmos i:nth-child(1){background:var(--violet);left:-14vmax;top:-10vmax}
+.atmos i:nth-child(2){background:var(--sky);right:-16vmax;top:22vh;animation-duration:58s;opacity:.18}
+.atmos i:nth-child(3){background:var(--modo);left:28vw;bottom:-26vmax;animation-duration:70s;opacity:.16}
+@keyframes deriva{to{transform:translate3d(8vmax,5vmax,0) scale(1.15)}}
+[data-modo="REAL"] body::before{content:"";position:fixed;inset:0;z-index:50;pointer-events:none;
+  box-shadow:inset 0 0 0 3px var(--coral),inset 0 0 90px rgba(255,93,122,.35);animation:alerta 2.4s ease-in-out infinite}
+@keyframes alerta{50%{box-shadow:inset 0 0 0 3px var(--coral),inset 0 0 140px rgba(255,93,122,.55)}}
+
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:20px 16px 56px}
+
+/* cabeçalho */
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.logo{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:900;font-size:19px;letter-spacing:.02em}
+.logo .mark{width:30px;height:30px;border-radius:50%;background:conic-gradient(from 210deg,var(--violet),var(--sky),var(--aqua),var(--gold),var(--violet));
+  box-shadow:0 0 22px rgba(139,92,246,.6);position:relative}
+.logo .mark::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border-radius:999px;font-weight:800;font-size:13px;letter-spacing:.06em;
+  background:color-mix(in srgb,var(--modo) 16%,transparent);border:1px solid color-mix(in srgb,var(--modo) 55%,transparent);color:var(--modo)}
+.pill small{font-weight:600;letter-spacing:0;color:var(--tx);opacity:.85;font-size:12px}
+.grow{flex:1}
+.beat{display:inline-flex;align-items:center;gap:9px;font-size:13px;color:var(--mut)}
+.beat b{width:10px;height:10px;border-radius:50%;background:var(--aqua);box-shadow:0 0 0 0 rgba(34,230,196,.6);animation:bate 1.8s infinite}
+.beat.off b{background:var(--coral);animation:none;box-shadow:none}
+@keyframes bate{70%{box-shadow:0 0 0 10px rgba(34,230,196,0)}100%{box-shadow:0 0 0 0 rgba(34,230,196,0)}}
+.btn{border:1px solid var(--line);background:rgba(255,255,255,.05);padding:9px 16px;border-radius:12px;font-weight:700;font-size:13px;transition:.15s}
+.btn:hover{background:rgba(255,255,255,.1)}
+.btn.stop{border-color:rgba(255,93,122,.55);color:#FFB3C0}
+.btn.stop:hover{background:rgba(255,93,122,.16)}
+.aviso{display:none;margin-bottom:14px;padding:11px 16px;border-radius:14px;font-size:13px;font-weight:600;
+  background:rgba(139,92,246,.16);border:1px dashed rgba(139,92,246,.6)}
+.aviso.on{display:block}
+
+/* cartões */
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+.card{position:relative;background:var(--glass);border:1px solid var(--line);border-radius:22px;padding:18px 20px;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.card h2{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin-bottom:12px}
+.c-hero{grid-column:span 8}.c-side{grid-column:span 4;display:flex;flex-direction:column;gap:14px}
+.c-lane{grid-column:span 12}
+.c-stat{grid-column:span 3}
+.c-feed{grid-column:span 7}.c-curve{grid-column:span 5}
+@media (max-width:980px){.c-hero,.c-side,.c-feed,.c-curve{grid-column:span 12}.c-stat{grid-column:span 6}}
+@media (max-width:520px){.c-stat{grid-column:span 12}.card{padding:16px}
+  .pista{margin:6px 2px 0}.ponta{max-width:47%;font-size:12px}.ponta small{font-size:11px}.ponta.dir{text-align:right}}
+
+/* preço */
+.preco-topo{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.par{font-weight:800;font-size:14px;color:var(--mut)}
+.par em{font-style:normal;color:var(--tx)}
+.preco{font-family:var(--display);font-weight:900;font-size:clamp(34px,5.4vw,58px);line-height:1;letter-spacing:-.02em;transition:color .5s}
+.preco.sobe{color:var(--aqua)}.preco.desce{color:var(--coral)}
+.preco small{font-size:.4em;color:var(--mut);margin-right:6px;font-weight:700}
+.chart{position:relative;height:300px;margin-top:6px}
+canvas{display:block;width:100%;height:100%}
+.legenda{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin-top:10px}
+.legenda span::before{content:"";display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:7px;vertical-align:middle;background:var(--c)}
+.dica{position:absolute;pointer-events:none;background:rgba(10,11,30,.92);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;opacity:0;transition:opacity .1s;white-space:nowrap}
+
+/* anel do kill switch */
+.anel{display:flex;align-items:center;gap:16px}
+.anel svg{width:132px;height:132px;flex:none;transform:rotate(-90deg)}
+.anel .trilho{stroke:rgba(255,255,255,.08)}
+.anel .arco{transition:stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1),stroke .5s}
+.anel .txt{font-size:13px;color:var(--mut);line-height:1.45}
+.anel .txt b{display:block;font-family:var(--display);font-size:24px;color:var(--tx);margin-bottom:2px}
+.anel-meio{position:absolute}
+.status-frase{font-size:18px;font-weight:800;line-height:1.3}
+.status-sub{font-size:13px;color:var(--mut);margin-top:6px;line-height:1.5}
+.status-erro{margin-top:10px;font-size:12.5px;color:#FFB3C0;background:rgba(255,93,122,.12);border-radius:10px;padding:8px 10px;word-break:break-word}
+.pontos::after{content:"";animation:pontos 1.6s steps(4) infinite}
+@keyframes pontos{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+
+/* pista da aposta (assinatura) */
+.lane-topo{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;margin-bottom:6px}
+.lane-topo h2{margin:0}
+.lane-info{font-size:13px;color:var(--mut)}
+.pista{position:relative;height:150px;margin:6px 8px 0}
+.trilho-g{position:absolute;left:0;right:0;top:78px;height:14px;border-radius:999px;background:linear-gradient(90deg,var(--coral),var(--gold) 45%,var(--aqua));
+  box-shadow:0 0 28px rgba(255,194,75,.18);transition:background .5s}
+.pista.espera .trilho-g{background:linear-gradient(90deg,#3B3F86,var(--violet) 48%,var(--sky))}
+.ponta{position:absolute;top:104px;font-size:12.5px;font-weight:800;line-height:1.4}
+.ponta small{display:block;font-weight:600;color:var(--mut);font-size:12px}
+.ponta.esq{left:0;color:var(--coral)}.ponta.dir{right:0;text-align:right;color:var(--aqua)}
+.pista.espera .ponta.esq{color:#A9A6FF}.pista.espera .ponta.dir{color:var(--sky)}
+.marca{position:absolute;top:70px;width:2px;height:30px;background:rgba(255,255,255,.7);border-radius:2px;transform:translateX(-1px)}
+.marca span{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:700;color:var(--mut);white-space:nowrap}
+.bola{position:absolute;top:85px;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff,#B9A6FF 62%);box-shadow:0 0 0 6px rgba(185,166,255,.28),0 0 36px #A58BFF;
+  transition:left 1.2s cubic-bezier(.2,.8,.2,1);animation:respira 2.2s ease-in-out infinite}
+@keyframes respira{50%{box-shadow:0 0 0 12px rgba(185,166,255,.12),0 0 48px #A58BFF}}
+.balao{position:absolute;top:6px;transform:translateX(-50%);transition:left 1.2s cubic-bezier(.2,.8,.2,1);background:var(--tx);color:var(--ink);
+  font-weight:800;font-size:13px;padding:5px 11px;border-radius:10px;white-space:nowrap}
+.balao::after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;background:var(--tx);transform:translateX(-50%) rotate(45deg);border-radius:2px}
+.pista.vazia .marca{display:none}
+.card.treme{animation:treme .55s}
+@keyframes treme{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+
+/* estatísticas */
+.stat .valor{font-family:var(--display);font-weight:700;font-size:clamp(24px,3vw,32px);line-height:1.1}
+.stat .nota{font-size:12.5px;color:var(--mut);margin-top:8px;line-height:1.45}
+.barra{height:8px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:10px;overflow:hidden}
+.barra i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--violet),var(--aqua));transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.pos{color:var(--aqua)}.neg{color:var(--coral)}
+
+/* diário */
+.feed{list-style:none;padding:0;max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:7px;scrollbar-width:thin}
+.feed li{display:flex;gap:11px;align-items:flex-start;padding:9px 11px;border-radius:14px;background:rgba(255,255,255,.04);font-size:13.5px;line-height:1.4;animation:entra .5s both}
+@keyframes entra{from{opacity:0;transform:translateY(-10px)}}
+.feed .ic{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:14px;font-weight:800;background:color-mix(in srgb,var(--c) 20%,transparent);color:var(--c)}
+.feed time{display:block;font-size:11.5px;color:var(--mut)}
+.vazio{color:var(--mut);font-size:13.5px;padding:18px 4px;line-height:1.5}
+
+/* avisos e confete */
+.toasts{position:fixed;right:16px;bottom:16px;z-index:60;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+.toast{max-width:320px;padding:12px 16px;border-radius:14px;font-weight:700;font-size:14px;background:#171A40;border:1px solid var(--c,var(--line));
+  box-shadow:0 8px 30px rgba(0,0,0,.45);animation:sobe .4s both}
+@keyframes sobe{from{opacity:0;transform:translateY(16px)}}
+.flash{position:fixed;inset:0;z-index:55;pointer-events:none;background:radial-gradient(circle,transparent 40%,rgba(255,93,122,.4));opacity:0}
+.flash.on{animation:flash .8s}
+@keyframes flash{30%{opacity:1}}
+#confete{position:fixed;inset:0;z-index:58;pointer-events:none;width:100%;height:100%}
+
+/* vazio geral e diálogo */
+.sem-robo{display:none;text-align:center;padding:44px 20px}
+.sem-robo.on{display:block}
+.sem-robo h3{font-family:var(--display);font-size:22px;margin-bottom:12px}
+.sem-robo p{color:var(--mut);line-height:1.6;max-width:520px;margin:0 auto 6px}
+code{background:rgba(255,255,255,.09);padding:2px 8px;border-radius:7px;font-size:.92em}
+dialog{border:1px solid var(--line);border-radius:20px;background:#12143A;color:var(--tx);padding:24px;max-width:430px;font-family:var(--body)}
+dialog::backdrop{background:rgba(5,5,20,.7);backdrop-filter:blur(4px)}
+dialog h3{font-family:var(--display);font-size:18px;margin-bottom:10px}
+dialog p{color:var(--mut);font-size:14px;line-height:1.55;margin-bottom:18px}
+dialog .acoes{display:flex;gap:10px;justify-content:flex-end}
+.dim{opacity:.45;filter:saturate(.5);transition:.4s}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .atmos{display:none}
+}
+</style>
+</head>
+<body>
+<div class="atmos" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="flash" id="flash" aria-hidden="true"></div>
+<canvas id="confete" aria-hidden="true"></canvas>
+
+<div class="wrap">
+  <header>
+    <div class="logo"><span class="mark"></span>TRADER BIT</div>
+    <div class="pill" id="pill">—</div>
+    <div class="grow"></div>
+    <div class="beat off" id="beat"><b></b><span id="beatTxt">conectando…</span></div>
+    <button class="btn stop" id="btnParar" type="button">Parar o robô</button>
+  </header>
+
+  <div class="aviso" id="avisoDemo">Demonstração: os dados desta tela são fictícios. O robô real não está sendo mostrado.</div>
+
+  <div class="card sem-robo" id="semRobo">
+    <h3>Nenhum robô rodando</h3>
+    <p>Abra outro terminal na pasta do robô e rode <code>python main.py</code>. Esta tela atualiza sozinha assim que ele começar.</p>
+    <p>Quer só ver como a tela fica? Feche este painel e rode <code>python painel.py --demo</code>.</p>
+  </div>
+
+  <main class="grid" id="conteudo">
+    <section class="card c-hero" aria-label="Preço e gráfico">
+      <div class="preco-topo">
+        <div>
+          <div class="par"><em id="par">BTC/USDT</em> · <span id="tf">—</span></div>
+          <div class="preco num" id="preco" aria-live="off">—</div>
+        </div>
+        <div class="par" id="idade"></div>
+      </div>
+      <div class="chart" id="chartBox">
+        <canvas id="chart"></canvas>
+        <div class="dica" id="dica"></div>
+      </div>
+      <div class="legenda">
+        <span style="--c:#fff">Preço</span>
+        <span style="--c:var(--violet)">Média rápida (9)</span>
+        <span style="--c:var(--sky)">Média lenta (21)</span>
+        <span>▲ compra · ● venda</span>
+      </div>
+    </section>
+
+    <div class="c-side">
+      <section class="card" aria-label="Freio do dia">
+        <h2>Freio do dia</h2>
+        <div class="anel">
+          <svg viewBox="0 0 132 132" aria-hidden="true">
+            <defs><linearGradient id="gArco" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22E6C4"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient></defs>
+            <circle class="trilho" cx="66" cy="66" r="54" fill="none" stroke-width="13"/>
+            <circle class="arco" id="arco" cx="66" cy="66" r="54" fill="none" stroke-width="13" stroke-linecap="round" stroke="url(#gArco)" stroke-dasharray="339.3" stroke-dashoffset="339.3"/>
+          </svg>
+          <div class="txt"><b class="num" id="pnlDia">—</b><span id="freioTxt"></span></div>
+        </div>
+      </section>
+      <section class="card" aria-label="O que o robô está fazendo" style="flex:1">
+        <h2>O que o robô está fazendo</h2>
+        <p class="status-frase" id="stFrase" aria-live="polite">—</p>
+        <p class="status-sub" id="stSub"></p>
+        <p class="status-erro" id="stErro" hidden></p>
+      </section>
+    </div>
+
+    <section class="card c-lane" id="laneCard" aria-label="Aposta atual">
+      <div class="lane-topo"><h2 id="laneTitulo">Aposta atual</h2><div class="lane-info" id="laneInfo"></div></div>
+      <div class="pista vazia" id="pista">
+        <div class="trilho-g"></div>
+        <div class="marca" id="marca"><span id="marcaTxt">entrada</span></div>
+        <div class="balao num" id="balao">—</div>
+        <div class="bola" id="bola"></div>
+        <div class="ponta esq" id="pEsq"></div>
+        <div class="ponta dir" id="pDir"></div>
+      </div>
+    </section>
+
+    <section class="card c-stat stat"><h2>Operações fechadas</h2><div class="valor num" id="sTrades">0</div><div class="nota" id="sTradesN">Compras que já foram vendidas.</div></section>
+    <section class="card c-stat stat"><h2>Taxa de acerto</h2><div class="valor num" id="sAcerto">—</div><div class="barra"><i id="sAcertoB"></i></div><div class="nota">Para empatar com stop de 1% e alvo de 1,5%, precisa ficar perto de 49%.</div></section>
+    <section class="card c-stat stat"><h2>Resultado total</h2><div class="valor num" id="sTotal">0,00</div><div class="nota">Em USDT, já descontadas as taxas.</div></section>
+    <section class="card c-stat stat"><h2>Fator de lucro</h2><div class="valor num" id="sFator">—</div><div class="nota">Acima de 1 = ganhou mais do que perdeu.</div></section>
+
+    <section class="card c-feed"><h2>Diário do robô</h2><ul class="feed" id="feed"></ul></section>
+    <section class="card c-curve"><h2>Curva de resultado</h2><div class="chart" style="height:250px"><canvas id="curva"></canvas></div><div class="vazio" id="curvaVazia" hidden>Aparece depois da primeira venda.</div></section>
+  </main>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<dialog id="dlg">
+  <h3 id="dlgT">Parar o robô?</h3>
+  <p id="dlgP"></p>
+  <div class="acoes"><button class="btn" id="dlgNao" type="button">Voltar</button><button class="btn stop" id="dlgSim" type="button">Parar</button></div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const COR = {aqua:'#22E6C4',coral:'#FF5D7A',gold:'#FFC24B',sky:'#4CC9F0',violet:'#8B5CF6',lime:'#B8F34D'};
+const reduz = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const nf = (n,d=2) => (n==null||isNaN(n)) ? '—' : n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const sg = (n,d=2) => (n>0?'+':n<0?'−':'') + nf(Math.abs(n),d);
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v,a,b) => Math.min(b,Math.max(a,v));
+const hora = t => new Date(t).toLocaleTimeString('pt-BR');
+
+let S = {d:null, ultimoPreco:null, vistos:null, feedKey:'', hover:null, erroRede:false};
+
+/* ---------- números que "rolam" ---------- */
+function rola(el, para, fmt){
+  const de = el._v ?? para; el._v = para;
+  if (reduz || de === para){ el.textContent = fmt(para); return; }
+  const ini = performance.now();
+  (function passo(t){
+    const k = clamp((t-ini)/700,0,1), e = 1-Math.pow(1-k,3);
+    el.textContent = fmt(de+(para-de)*e);
+    if (k<1) requestAnimationFrame(passo);
+  })(ini);
+}
+
+/* ---------- busca de dados ---------- */
+async function tick(){
+  try{
+    const r = await fetch('/api/estado',{cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    S.d = await r.json(); S.erroRede = false;
+    render(S.d);
+  }catch(e){ S.erroRede = true; batimento(); }
+  setTimeout(tick, 2000);
+}
+
+/* ---------- render principal ---------- */
+function render(d){
+  const e = d.estado;
+  $('#avisoDemo').classList.toggle('on', d.demo);
+  $('#semRobo').classList.toggle('on', !e);
+  $('#conteudo').style.display = e ? '' : 'none';
+  $('#btnParar').style.display = e ? '' : 'none';
+  if(!e){ document.documentElement.dataset.modo = ''; $('#pill').innerHTML = 'SEM ROBÔ'; batimento(); return; }
+
+  document.documentElement.dataset.modo = e.modo;
+  const sub = {SIMULADO:'nenhuma ordem é enviada', TESTNET:'dinheiro de mentira', REAL:'DINHEIRO REAL'}[e.modo] || '';
+  $('#pill').innerHTML = `${esc(e.modo)} <small>· ${sub}</small>`;
+  $('#par').textContent = e.simbolo; $('#tf').textContent = e.timeframe==='demo' ? 'demonstração' : 'candles de '+e.timeframe;
+  $('#conteudo').classList.toggle('dim', !d.vivo);
+  batimento();
+  renderPreco(e);
+  renderStatus(e, d);
+  renderAnel(e);
+  renderPista(e);
+  renderStats(d.resumo);
+  renderFeed(d.eventos);
+  renderBotao(d, e);
+  detectarNovos(d.eventos);
+  S.candles = e.candles || []; S.marcas = d.eventos.filter(x=>x.evento==='COMPRA'||x.evento==='VENDA');
+  S.curva = d.resumo.curva; S.estado = e;
+  $('#curvaVazia').hidden = d.resumo.curva.length >= 2;
+}
+
+function batimento(){
+  const b = $('#beat'), t = $('#beatTxt'), d = S.d;
+  if (S.erroRede){ b.classList.add('off'); t.textContent = 'o painel perdeu a conexão com o computador'; return; }
+  if (!d || !d.estado){ b.classList.add('off'); t.textContent = 'aguardando o robô'; return; }
+  const seg = Math.max(0, Math.round((d.agora - d.estado.atualizado)/1000));
+  if (d.estado.parado){ b.classList.add('off'); t.textContent = 'robô parado'; return; }
+  if (d.vivo){ b.classList.remove('off'); t.textContent = `ao vivo · atualizado há ${seg}s`; }
+  else { b.classList.add('off'); t.textContent = seg > 90 ? `sem sinal do robô há ${Math.round(seg/60)} min` : 'sem sinal do robô'; }
+}
+
+function renderPreco(e){
+  const el = $('#preco');
+  if (e.preco == null){ el.innerHTML = '<small></small>Conectando à Binance…'; el.style.fontSize = '24px'; return; }
+  el.style.fontSize = '';
+  el.innerHTML = `<small>US$</small>${nf(e.preco)}`;
+  if (S.ultimoPreco != null && e.preco !== S.ultimoPreco){
+    el.classList.remove('sobe','desce'); void el.offsetWidth;
+    el.classList.add(e.preco > S.ultimoPreco ? 'sobe' : 'desce');
+    clearTimeout(S.fl); S.fl = setTimeout(()=>el.classList.remove('sobe','desce'), 900);
+  }
+  S.ultimoPreco = e.preco;
+  const c = e.candles || [];
+  $('#idade').textContent = c.length ? `${c.length} candles no gráfico` : '';
+}
+
+function renderStatus(e, d){
+  const f = $('#stFrase'), s = $('#stSub'), er = $('#stErro');
+  er.hidden = !e.erro; if (e.erro) er.textContent = 'Último erro: ' + e.erro;
+  if (e.parado){
+    f.textContent = 'Robô parado.'; s.textContent = e.motivo_parada ? `Motivo: ${e.motivo_parada}. Para voltar, rode python main.py de novo.` : 'Para voltar, rode python main.py de novo.';
+  } else if (d.parar_ativo){
+    f.textContent = 'Parada pedida.'; s.textContent = 'O robô não faz novas compras e encerra assim que fechar a posição aberta (se houver).';
+  } else if (!d.vivo){
+    f.textContent = 'Sem sinal do robô.'; s.textContent = 'O terminal do main.py pode ter sido fechado, ou o computador dormiu. Veja o terminal.';
+  } else if (e.posicao){
+    f.innerHTML = 'Comprado<span class="pontos"></span>'; s.textContent = 'Esperando o preço chegar no alvo (ganho) ou no stop (perda). O robô vende sozinho.';
+  } else {
+    f.innerHTML = 'Procurando entrada<span class="pontos"></span>'; s.textContent = 'Compra quando a linha rápida (violeta) cruzar para cima da lenta (azul). Isso pode levar horas.';
+  }
+}
+
+function renderAnel(e){
+  const lim = e.perda_max || 1, pnl = e.pnl_dia || 0;
+  const f = clamp((lim+pnl)/lim, 0, 1), C = 339.292;   // margem que ainda resta: cheio = seguro
+  const arco = $('#arco');
+  arco.style.strokeDashoffset = C * (1 - Math.max(f, 0.012));
+  arco.setAttribute('stroke', f > .5 ? 'url(#gArco)' : f > .25 ? COR.gold : COR.coral);
+  const el = $('#pnlDia'); el.className = 'num ' + (pnl>0?'pos':pnl<0?'neg':'');
+  rola(el, pnl, v => sg(v,2) + ' USDT');
+  const resta = lim + pnl;
+  $('#freioTxt').innerHTML = `Resultado de hoje.<br>Se o prejuízo chegar a −${nf(lim)} USDT, o robô para sozinho. Margem restante: <b style="display:inline;font:inherit;font-weight:800;color:var(--tx)">${nf(Math.max(resta,0))} USDT</b>.`;
+}
+
+/* ---------- pista da aposta ---------- */
+const sma = (v,n,i) => i < n-1 ? null : v.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n;
+function renderPista(e){
+  const p = e.posicao, pista = $('#pista'), preco = e.preco;
+  const bola = $('#bola'), balao = $('#balao'), marca = $('#marca');
+  if (p && preco != null){
+    pista.classList.remove('espera','vazia');
+    $('#laneTitulo').textContent = 'Aposta atual';
+    const range = p.alvo - p.stop, r = clamp((preco - p.stop)/range, 0.02, 0.98), ent = clamp((p.preco - p.stop)/range, 0, 1);
+    const q = p.quantidade, tx = (e.taxa ?? 0.001) * 2 * p.preco * q;
+    const ganho = (p.alvo-p.preco)*q - tx, perda = (p.stop-p.preco)*q - tx, agora = (preco-p.preco)*q - tx;
+    bola.style.left = balao.style.left = (r*100)+'%';
+    marca.style.left = (ent*100)+'%'; $('#marcaTxt').textContent = 'comprou a ' + nf(p.preco);
+    balao.textContent = nf(preco);
+    $('#pEsq').innerHTML = `STOP · ${nf(p.stop)}<small>se tocar aqui: ${sg(perda,3)} USDT</small>`;
+    $('#pDir').innerHTML = `ALVO · ${nf(p.alvo)}<small>se tocar aqui: ${sg(ganho,3)} USDT</small>`;
+    $('#laneInfo').innerHTML = `${nf(q,5)} ${esc(e.simbolo.split('/')[0])} · se vendesse agora: <b class="${agora>=0?'pos':'neg'}">${sg(agora,3)} USDT</b>`;
+    S.posAtiva = true;
+  } else {
+    S.posAtiva = false;
+    pista.classList.add('espera'); pista.classList.remove('vazia');
+    pista.classList.add('vazia'); // esconde a marca de entrada
+    $('#laneTitulo').textContent = e.parado ? 'Compras travadas' : 'Perto de comprar?';
+    const f = (e.candles||[]).map(c=>c[1]), i = f.length-1;
+    const rap = sma(f,9,i), len = sma(f,21,i);
+    if (rap != null && len != null){
+      const g = (rap-len)/len, r = clamp(.5 + g/.006, .03, .97);
+      bola.style.left = balao.style.left = (r*100)+'%';
+      balao.textContent = g >= 0 ? 'rápida acima' : 'rápida abaixo';
+      $('#laneInfo').textContent = e.parado ? 'O robô não vai mais comprar até você rodar python main.py de novo.' : g >= 0 ? 'A rápida já está acima da lenta: o cruzamento já aconteceu.' : `Faltam ${nf(Math.abs(g)*100,2)}% para a rápida alcançar a lenta.`;
+    } else { bola.style.left = balao.style.left = '50%'; balao.textContent = 'juntando dados'; $('#laneInfo').textContent = 'O robô precisa de 21 candles para calcular as médias.'; }
+    $('#pEsq').innerHTML = 'Rápida bem abaixo<small>longe de comprar</small>';
+    $('#pDir').innerHTML = 'Rápida acima da lenta<small>sinal de COMPRA</small>';
+  }
+}
+
+/* ---------- estatísticas ---------- */
+function renderStats(r){
+  rola($('#sTrades'), r.trades, v => Math.round(v));
+  $('#sTradesN').textContent = r.trades ? `${r.vitorias} no alvo, ${r.trades-r.vitorias} no stop.` : 'Compras que já foram vendidas.';
+  const ac = r.trades ? 100*r.vitorias/r.trades : null;
+  $('#sAcerto').textContent = ac==null ? '—' : nf(ac,0)+'%'; $('#sAcertoB').style.width = (ac||0)+'%';
+  const t = $('#sTotal'); t.className = 'valor num ' + (r.pnl_total>0?'pos':r.pnl_total<0?'neg':'');
+  rola(t, r.pnl_total, v => sg(v,2));
+  const f = $('#sFator'); f.textContent = r.fator==null ? '—' : nf(r.fator,2);
+  f.className = 'valor num ' + (r.fator==null ? '' : r.fator>=1 ? 'pos' : 'neg');
+}
+
+/* ---------- diário ---------- */
+const TIPO = {
+  INICIO:['▶','--sky'], REGRAS:['§','--mut'], COMPRA:['▲','--aqua'], VENDA:['●','--lime'],
+  RECUSADA:['!','--gold'], ERRO:['×','--coral'], PARADO:['■','--gold']
+};
+function textoEvento(x){
+  const b = n => `<b>${n}</b>`;
+  switch(x.evento){
+    case 'INICIO': return 'Robô iniciado. ' + esc(x.detalhe);
+    case 'REGRAS': return 'Regras da Binance carregadas. ' + esc(x.detalhe);
+    case 'COMPRA': return `Comprou ${b(nf(x.quantidade,5))} a ${b(nf(x.preco))}` + (x.detalhe ? ` · ${esc(x.detalhe)}` : '');
+    case 'VENDA': { const ok = (x.pnl??0) > 0;
+      return `Vendeu ${ok?'no alvo':'no stop'} a ${b(nf(x.preco))} · resultado <b class="${ok?'pos':'neg'}">${sg(x.pnl??0,3)} USDT</b>`; }
+    case 'RECUSADA': return 'Compra recusada: ' + esc(x.detalhe);
+    case 'ERRO': return 'Erro: ' + esc(x.detalhe);
+    case 'PARADO': return 'Robô parado: ' + esc(x.detalhe);
+    default: return esc(x.evento + ' ' + x.detalhe);
+  }
+}
+function renderFeed(ev){
+  const lista = ev.slice().reverse().slice(0,40), key = lista.map(x=>x.t+x.evento).join();
+  if (key === S.feedKey) return;
+  const velhas = new Set((S.feedKey||'').split(',')); S.feedKey = key;
+  const ul = $('#feed');
+  if (!lista.length){ ul.innerHTML = '<li class="vazio" style="animation:none">Nada aconteceu ainda. O robô escreve aqui cada compra, venda e aviso.</li>'; return; }
+  ul.innerHTML = lista.map(x => {
+    const [ic, cv] = TIPO[x.evento] || ['·','--mut'];
+    let cor = cv; if (x.evento==='VENDA') cor = (x.pnl??0) > 0 ? '--lime' : '--coral';
+    const nova = velhas.has(x.t+x.evento) ? 'style="animation:none"' : '';
+    return `<li ${nova}><span class="ic" style="--c:var(${cor})">${ic}</span><div>${textoEvento(x)}<time>${hora(x.t)}</time></div></li>`;
+  }).join('');
+}
+
+/* ---------- novidades: avisos, confete, tremida ---------- */
+function detectarNovos(ev){
+  const chaves = ev.map(x => x.t+'|'+x.evento);
+  if (!S.vistos){ S.vistos = new Set(chaves); return; }
+  ev.forEach((x,i) => {
+    if (S.vistos.has(chaves[i])) return;
+    S.vistos.add(chaves[i]);
+    if (x.evento==='COMPRA') aviso(`Comprou ${nf(x.quantidade,5)} a ${nf(x.preco)}`, COR.aqua);
+    else if (x.evento==='VENDA'){
+      if ((x.pnl??0) > 0){ aviso(`Alvo! ${sg(x.pnl,3)} USDT`, COR.lime); confete(); }
+      else { aviso(`Stop acionado ${sg(x.pnl??0,3)} USDT`, COR.coral); tremida(); }
+    }
+    else if (x.evento==='PARADO') aviso('Robô parado: ' + x.detalhe, COR.gold);
+    else if (x.evento==='ERRO') aviso('Erro: ' + x.detalhe.slice(0,90), COR.coral);
+    else if (x.evento==='RECUSADA') aviso('Compra recusada', COR.gold);
+  });
+}
+function aviso(txt, cor){
+  const t = document.createElement('div'); t.className = 'toast'; t.style.setProperty('--c', cor); t.textContent = txt;
+  $('#toasts').appendChild(t); setTimeout(()=>t.remove(), 6000);
+  while ($('#toasts').children.length > 4) $('#toasts').firstChild.remove();
+}
+function tremida(){
+  if (reduz) return;
+  const c = $('#laneCard'); c.classList.remove('treme'); void c.offsetWidth; c.classList.add('treme');
+  const f = $('#flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+}
+
+/* confete */
+const cf = $('#confete'), cx = cf.getContext('2d'); let parts = [], cfRodando = false;
+function confete(){
+  if (reduz) return;
+  const w = cf.width = innerWidth, h = cf.height = innerHeight;
+  const cores = [COR.aqua,COR.lime,COR.gold,COR.violet,COR.sky,COR.coral];
+  for (let i=0;i<150;i++) parts.push({x:w*(.3+Math.random()*.4), y:h*.35, vx:(Math.random()-.5)*14, vy:-Math.random()*13-3, g:.32+Math.random()*.15,
+    s:5+Math.random()*7, r:Math.random()*6.28, vr:(Math.random()-.5)*.4, c:cores[i%cores.length], v:1});
+  if (!cfRodando){ cfRodando = true; requestAnimationFrame(passoConfete); }
+}
+function passoConfete(){
+  cx.clearRect(0,0,cf.width,cf.height);
+  parts.forEach(p => { p.vy += p.g; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.vx *= .99; p.v -= .007;
+    cx.save(); cx.globalAlpha = Math.max(p.v,0); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-p.s/2,-p.s/3,p.s,p.s*.6); cx.restore(); });
+  parts = parts.filter(p => p.v > 0 && p.y < cf.height+40);
+  if (parts.length) requestAnimationFrame(passoConfete); else { cfRodando = false; cx.clearRect(0,0,cf.width,cf.height); }
+}
+
+/* ---------- botão parar / cancelar ---------- */
+function renderBotao(d, e){
+  const b = $('#btnParar');
+  if (e.parado){ b.style.display = 'none'; return; }
+  b.style.display = '';
+  if (d.parar_ativo){ b.textContent = 'Cancelar parada'; b.classList.remove('stop'); b.dataset.acao = 'retomar'; }
+  else { b.textContent = 'Parar o robô'; b.classList.add('stop'); b.dataset.acao = 'parar'; }
+}
+async function chamar(acao){
+  try{ await fetch('/api/'+acao,{method:'POST',headers:{'X-Painel':'1'}}); }catch(e){}
+  tick_agora();
+}
+let tmr; function tick_agora(){ /* atualiza já, sem esperar o ciclo */
+  fetch('/api/estado',{cache:'no-store'}).then(r=>r.json()).then(d=>{S.d=d; render(d);}).catch(()=>{});
+}
+$('#btnParar').addEventListener('click', () => {
+  if ($('#btnParar').dataset.acao === 'retomar'){ chamar('retomar'); return; }
+  $('#dlgT').textContent = 'Parar o robô?';
+  $('#dlgP').textContent = 'Ele não fará novas compras. Se houver uma posição aberta, ela continua até bater o alvo ou o stop, e então o robô encerra.';
+  const dlg = $('#dlg'); if (dlg.showModal) dlg.showModal(); else if (confirm('Parar o robô?')) chamar('parar');
+});
+$('#dlgNao').addEventListener('click', () => $('#dlg').close());
+$('#dlgSim').addEventListener('click', () => { $('#dlg').close(); chamar('parar'); });
+
+/* ---------- gráfico de preço ---------- */
+const cv = $('#chart'), g = cv.getContext('2d');
+function ajusta(c){ const r = c.getBoundingClientRect(), k = devicePixelRatio||1; c.width = Math.round(r.width*k); c.height = Math.round(r.height*k); return k; }
+addEventListener('resize', () => { ajusta(cv); ajusta(cvc); });
+const cvc = $('#curva'), gc = cvc.getContext('2d');
+ajusta(cv); ajusta(cvc);
+
+function linha(ctx, pts, cor, larg, k){
+  ctx.beginPath(); let ini = false;
+  pts.forEach(([x,y]) => { if (y==null) return; if (!ini){ ctx.moveTo(x,y); ini = true; } else ctx.lineTo(x,y); });
+  ctx.strokeStyle = cor; ctx.lineWidth = larg*k; ctx.lineJoin = 'round'; ctx.stroke();
+}
+function desenha(ts){
+  const k = devicePixelRatio||1, W = cv.width, H = cv.height;
+  g.clearRect(0,0,W,H);
+  const c = S.candles || [];
+  if (c.length >= 2){
+    const f = c.map(x=>x[1]), e = S.estado, p = e && e.posicao;
+    let lo = Math.min(...f), hi = Math.max(...f);
+    if (p){ lo = Math.min(lo, p.stop); hi = Math.max(hi, p.alvo); }
+    const pad = (hi-lo)*.1 || 1; lo -= pad; hi += pad;
+    const L = 8*k, R = W - 62*k, T = 8*k, B = H - 8*k;
+    const X = i => L + (R-L)*i/(f.length-1), Y = v => B - (B-T)*(v-lo)/(hi-lo);
+    // grade e eixo
+    g.font = `${11*k}px Manrope, system-ui`; g.fillStyle = 'rgba(154,156,198,.9)'; g.textAlign = 'left';
+    for (let i=0;i<=4;i++){ const v = lo + (hi-lo)*i/4, y = Y(v);
+      g.strokeStyle = 'rgba(165,165,255,.08)'; g.lineWidth = k; g.beginPath(); g.moveTo(L,y); g.lineTo(R,y); g.stroke();
+      g.fillText(nf(v,0), R+8*k, y+4*k); }
+    // área sob o preço
+    const pts = f.map((v,i)=>[X(i),Y(v)]);
+    const gr = g.createLinearGradient(0,T,0,B); gr.addColorStop(0,'rgba(139,92,246,.30)'); gr.addColorStop(1,'rgba(139,92,246,0)');
+    g.beginPath(); pts.forEach(([x,y],i)=> i?g.lineTo(x,y):g.moveTo(x,y)); g.lineTo(R,B); g.lineTo(L,B); g.closePath(); g.fillStyle = gr; g.fill();
+    // médias
+    linha(g, f.map((_,i)=>{const v=sma(f,21,i);return [X(i), v==null?null:Y(v)]}), COR.sky, 2, k);
+    linha(g, f.map((_,i)=>{const v=sma(f,9,i);return [X(i), v==null?null:Y(v)]}), COR.violet, 2, k);
+    linha(g, pts, '#fff', 2.4, k);
+    // stop / alvo / entrada
+    if (p){
+      [[p.alvo,COR.aqua,'ALVO'],[p.stop,COR.coral,'STOP'],[p.preco,'#ffffff','ENTRADA']].forEach(([v,cor,rot]) => {
+        const y = Y(v); g.setLineDash([6*k,5*k]); g.strokeStyle = cor; g.globalAlpha = rot==='ENTRADA'?.55:.9; g.lineWidth = 1.5*k;
+        g.beginPath(); g.moveTo(L,y); g.lineTo(R,y); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+        const tw = g.measureText(rot).width + 10*k; g.fillStyle = 'rgba(10,11,30,.82)'; g.fillRect(L+4*k, y-9*k, tw, 18*k);
+        g.fillStyle = cor; g.textAlign = 'left'; g.fillText(rot, L+9*k, y+4*k); });
+    }
+    // marcas de compra e venda
+    (S.marcas||[]).forEach(m => {
+      let idx = -1; for (let i=0;i<c.length;i++){ if (c[i][0] <= m.t) idx = i; else break; }
+      if (idx < 0 || m.t > c[c.length-1][0] + 120000 || m.preco == null) return;
+      const x = X(idx), y = Y(m.preco);
+      if (m.evento==='COMPRA'){ g.fillStyle = COR.aqua; g.beginPath(); g.moveTo(x,y-9*k); g.lineTo(x-7*k,y+5*k); g.lineTo(x+7*k,y+5*k); g.closePath(); g.fill(); }
+      else { g.fillStyle = (m.pnl??0)>0 ? COR.lime : COR.coral; g.beginPath(); g.arc(x,y,6*k,0,6.283); g.fill(); g.strokeStyle='#0A0B1E'; g.lineWidth=2*k; g.stroke(); }
+    });
+    // ponto vivo
+    const lx = X(f.length-1), ly = Y(f[f.length-1]), pulso = reduz ? 0 : (Math.sin(ts/380)+1)/2;
+    g.fillStyle = `rgba(255,255,255,${.25*(1-pulso)})`; g.beginPath(); g.arc(lx,ly,(7+9*pulso)*k,0,6.283); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(lx,ly,4.5*k,0,6.283); g.fill();
+    // cursor
+    if (S.hover != null){
+      const i = clamp(Math.round((S.hover*k - L)/(R-L)*(f.length-1)), 0, f.length-1), x = X(i);
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = k; g.beginPath(); g.moveTo(x,T); g.lineTo(x,B); g.stroke();
+      const d = $('#dica'); d.style.opacity = 1; d.style.left = clamp(x/k+10, 0, cv.getBoundingClientRect().width-130)+'px'; d.style.top = '6px';
+      d.textContent = `${hora(c[i][0])} · US$ ${nf(f[i])}`;
+    } else $('#dica').style.opacity = 0;
+  }
+  desenhaCurva();
+  requestAnimationFrame(desenha);
+}
+cv.addEventListener('mousemove', e => { S.hover = e.clientX - cv.getBoundingClientRect().left; });
+cv.addEventListener('mouseleave', () => { S.hover = null; });
+
+function desenhaCurva(){
+  const k = devicePixelRatio||1, W = cvc.width, H = cvc.height; gc.clearRect(0,0,W,H);
+  const v = [0, ...(S.curva||[])]; if (v.length < 3) return;
+  let lo = Math.min(...v,0), hi = Math.max(...v,0); const pad = (hi-lo)*.15 || .1; lo -= pad; hi += pad;
+  const L = 8*k, R = W-62*k, T = 8*k, B = H-8*k, X = i => L+(R-L)*i/(v.length-1), Y = x => B-(B-T)*(x-lo)/(hi-lo);
+  const fim = v[v.length-1], cor = fim >= 0 ? COR.aqua : COR.coral;
+  gc.setLineDash([5*k,5*k]); gc.strokeStyle = 'rgba(255,255,255,.3)'; gc.lineWidth = k; gc.beginPath(); gc.moveTo(L,Y(0)); gc.lineTo(R,Y(0)); gc.stroke(); gc.setLineDash([]);
+  const gr = gc.createLinearGradient(0,T,0,B); gr.addColorStop(0, cor+'55'); gr.addColorStop(1, cor+'00');
+  gc.beginPath(); v.forEach((x,i)=> i?gc.lineTo(X(i),Y(x)):gc.moveTo(X(i),Y(x))); gc.lineTo(R,Y(0)); gc.lineTo(L,Y(0)); gc.closePath(); gc.fillStyle = gr; gc.fill();
+  linha(gc, v.map((x,i)=>[X(i),Y(x)]), cor, 2.6, k);
+  gc.fillStyle = cor; gc.font = `800 ${12*k}px Manrope, system-ui`; gc.textAlign = 'left'; gc.fillText(sg(fim,2), R+8*k, Y(fim)+4*k);
+  gc.beginPath(); gc.arc(X(v.length-1),Y(fim),4.5*k,0,6.283); gc.fill();
+}
+
+setInterval(batimento, 1000);
+tick();
+requestAnimationFrame(desenha);
+</script>
+</body>
+</html>

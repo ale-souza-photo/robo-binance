@@ -5,6 +5,7 @@ import scanner
 import risco
 from regras_binance import RegrasBinance
 import registro
+import estado
 from executor import Executor
 from kill_switch import KillSwitch
 
@@ -29,6 +30,19 @@ def main():
     executor = Executor(exchange, regras)
     kill = KillSwitch()
     posicao = None  # só uma por vez
+    candles, preco, analise = [], None, {}
+
+    def publicar(erro=None):
+        """Grava o instantâneo que o painel (painel.py) mostra na tela."""
+        estado.salvar(
+            modo=modo, simbolo=config.SIMBOLO, timeframe=config.TIMEFRAME,
+            intervalo=config.INTERVALO_SEGUNDOS, valor_por_ordem=config.VALOR_POR_ORDEM_USDT,
+            perda_max=config.PERDA_MAXIMA_DIARIA_USDT, taxa=config.TAXA, pnl_dia=round(kill.pnl_dia, 4),
+            preco=preco, candles=[[c["tempo"], c["fechamento"]] for c in candles[-100:]],
+            posicao=posicao, sinal=analise.get("sinal"), motivo=analise.get("motivo"),
+            parado=kill.travado, motivo_parada=kill.motivo, erro=erro)
+
+    publicar()
 
     while True:
         try:
@@ -57,12 +71,14 @@ def main():
                     registro.registrar("COMPRA", entrada["preco"], entrada["quantidade"],
                                        detalhe=analise["motivo"])
 
+            publicar()
             if kill.travado and not posicao:
                 registro.registrar("PARADO", detalhe=kill.motivo)
                 break
 
         except Exception as erro:  # nunca deixa o robô cair sem registrar
             registro.registrar("ERRO", detalhe=str(erro))
+            publicar(erro=str(erro))
 
         time.sleep(config.INTERVALO_SEGUNDOS)
 
