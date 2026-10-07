@@ -10,10 +10,20 @@ from kill_switch import KillSwitch
 
 
 def main():
-    modo = "SIMULADO" if config.MODO_SIMULADO else "REAL"
+    if config.MODO_SIMULADO:
+        modo = "SIMULADO"
+    else:
+        modo = "TESTNET" if config.TESTNET else "REAL"
+        if not (config.API_KEY and config.API_SECRET):
+            nome = "BINANCE_TESTNET_API_KEY/SECRET" if config.TESTNET else "BINANCE_API_KEY/SECRET"
+            raise SystemExit(f"Modo {modo} precisa das variáveis de ambiente {nome}.")
     registro.registrar("INICIO", detalhe=f"modo {modo}")
 
-    exchange = scanner.criar_exchange(config.API_KEY, config.API_SECRET)
+    # Ordens vão para a testnet (se ligada); os candles vêm SEMPRE do mercado real,
+    # porque os preços da testnet são artificiais e distorceriam a estratégia.
+    usar_testnet = config.TESTNET and not config.MODO_SIMULADO
+    exchange = scanner.criar_exchange(config.API_KEY, config.API_SECRET, testnet=usar_testnet)
+    mercado = scanner.criar_exchange() if usar_testnet else exchange
     regras = RegrasBinance(exchange, config.SIMBOLO)  # lê mínimos e casas da Binance
     registro.registrar("REGRAS", detalhe=regras.resumo())
     executor = Executor(exchange, regras)
@@ -22,7 +32,7 @@ def main():
 
     while True:
         try:
-            candles = scanner.buscar_candles(exchange, config.SIMBOLO, config.TIMEFRAME)
+            candles = scanner.buscar_candles(mercado, config.SIMBOLO, config.TIMEFRAME)
             analise = scanner.analisar(candles)
             preco = analise["preco"]
 
