@@ -23,6 +23,21 @@ A quantidade é cortada para baixo no passo permitido; ordem abaixo do mínimo �
 registrada como `RECUSADA`. No modo real, a venda usa a quantidade líquida (a Binance desconta a
 taxa em BTC na compra).
 
+## DCA: compra periódica (novo)
+`python dca.py` faz UMA compra por período (mensal por padrão, a partir do dia 5), sem tentar
+adivinhar preço. Com pouco dinheiro compra um ativo por vez, o mais abaixo da proporção-meta.
+- `python dca.py --status` mostra quantidade, preço médio e resultado. `--forcar` compra agora
+  (ainda 1 por período). `--loop` fica ligado. No modo REAL é obrigatório `--real-confirmo`.
+- Configuração no `config.py` (seção DCA): `DCA_ATIVOS`, `DCA_VALOR_POR_RODADA`, `DCA_FREQUENCIA`,
+  `DCA_DIA`, `DCA_TETO_MENSAL`. Usa o mesmo `MODO_SIMULADO`/`TESTNET` do robô; cada modo tem o seu
+  `dca_estado_<MODO>.json` e o registro vai para `dca_registro.csv`.
+- Segurança: nunca compra duas vezes no período; teto mensal; recusa preço estranho ou valor abaixo do
+  mínimo; se uma ordem falhar no meio, marca o período como PENDENTE e pede para você conferir na
+  Binance (em vez de arriscar comprar em dobro); respeita PARAR.txt e TRAVA.txt.
+- Real com Pix: deposite reais na Binance e troque os pares por `BTC/BRL` e `ETH/BRL` (a testnet não
+  tem pares em reais). O valor mínimo da Binance é lido na hora; se for maior que o seu, ele recusa e avisa.
+- Testes: `python -m unittest testes_dca -v`.
+
 ## Painel gráfico (novo)
 Tela moderna no navegador, atualiza sozinha. Mostra preço e gráfico com as médias, a "pista da
 aposta" (bolinha entre STOP e ALVO), o freio do dia, estatísticas, diário e curva de resultado.

@@ -9,3 +9,6 @@ PARAR.txt
 .env.*
 *.zip
 TRAVA.txt
+dca_estado_*.json
+dca_estado_*.json.tmp
+dca_registro.csv
