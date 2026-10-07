@@ -247,5 +247,43 @@ class TravasAoVivo(unittest.TestCase):
         self.assertFalse(k.pode_operar(0, agora=1))
 
 
+class Robustez(unittest.TestCase):
+    def test_donchian_padrao_igual_aos_parametros_explicitos(self):
+        c = serie(n=800, seed=5)
+        self.assertEqual(E.donchian(c), E.donchian(c, n_entrada=55, n_saida=20, atr_mult=2.0))
+
+    def test_donchian_mudar_parametro_muda_o_resultado(self):
+        c = serie(n=800, seed=5)
+        self.assertNotEqual(E.donchian(c)["entrada"], E.donchian(c, n_entrada=20)["entrada"])
+
+    def test_equidade_trade_vencedor_sem_taxa(self):
+        import robustez
+        c = [candle(100, 100, 100, 100), candle(100, 100, 100, 100), candle(100, 105, 100, 105), candle(105, 110, 105, 110)]
+        t = [{"i_ent": 1, "i_sai": 3, "entrada": 100.0, "saida": 110.0, "pnl": 1.0}]
+        eq = robustez.curva_equidade(c, t, taxa=0.0, inicio=0)
+        self.assertAlmostEqual(eq[-1], 1.10)
+        self.assertAlmostEqual(eq[2], 1.05)  # marcado a mercado no meio do trade
+
+    def test_equidade_com_taxa_rende_menos(self):
+        import robustez
+        c = [candle(100, 100, 100, 100)] * 4
+        t = [{"i_ent": 1, "i_sai": 3, "entrada": 100.0, "saida": 100.0, "pnl": 0.0}]
+        self.assertLess(robustez.curva_equidade(c, t, taxa=0.001, inicio=0)[-1], 1.0)
+
+    def test_queda_maxima(self):
+        import robustez
+        r, dd = robustez.retorno_e_queda([1.0, 1.2, 0.9, 1.1])
+        self.assertAlmostEqual(dd, 25.0)   # de 1,2 para 0,9
+        self.assertAlmostEqual(r, 10.0)
+
+    def test_somar_bate_com_o_motor(self):
+        import robustez
+        c = {"X": serie(n=900, seed=9)}
+        base = robustez.rodar(c)
+        pnl, _, n = robustez.somar(base)
+        self.assertEqual(n, len(base["X"]))
+        self.assertAlmostEqual(pnl, sum(t["pnl"] for t in base["X"]))
+
+
 if __name__ == "__main__":
     unittest.main()

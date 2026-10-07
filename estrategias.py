@@ -161,15 +161,16 @@ def tendencia(c):
     return _plano(ent, sai, stop=_fracao_atr(c, a, 3, .02, .15), trailing=_fracao_atr(c, a, 3, .02, .15))
 
 
-def donchian(c):
-    """Rompimento lento: compra ao fechar acima da máxima de 55 candles; sai abaixo da mínima de 20."""
+def donchian(c, n_entrada=55, n_saida=20, atr_mult=2.0):
+    """Rompimento lento: compra ao fechar acima da máxima de 55 candles; sai abaixo da mínima de 20.
+    Stop inicial de 2 ATR. Os números padrão são os clássicos; robustez.py varia para testar."""
     f = [x["fechamento"] for x in c]
-    alta = maxima_anterior([x["maxima"] for x in c], 55)
-    baixa = minima_anterior([x["minima"] for x in c], 20)
+    alta = maxima_anterior([x["maxima"] for x in c], n_entrada)
+    baixa = minima_anterior([x["minima"] for x in c], n_saida)
     a = atr(c, 20)
     ent = [alta[i] is not None and f[i] > alta[i] for i in range(len(f))]
     sai = [baixa[i] is not None and f[i] < baixa[i] for i in range(len(f))]
-    return _plano(ent, sai, stop=_fracao_atr(c, a, 2, .02, .15))
+    return _plano(ent, sai, stop=_fracao_atr(c, a, atr_mult, .02, .15))
 
 
 def recuo(c):

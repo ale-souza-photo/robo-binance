@@ -46,6 +46,13 @@ das quatro, com e sem travas) em 1h/4h/1d, em BTC, ETH, SOL e BNB juntos (1500 d
 - Opções: `--simbolos BTC/USDT,ETH/USDT`, `--dias 2000`. Candles ficam salvos em `dados_*_1h_*d.csv`.
 - `python -m unittest testes -v` roda os testes (inclui a prova de que nenhuma estratégia olha o futuro).
 
+## Teste de robustez (novo)
+`python robustez.py` põe o Donchian à prova (4h e 1d, mesmos dados do comparar): (1) vizinhança de
+parâmetros, (2) custos mais altos, (3) estabilidade por metade e por ano, (4) dependência de sorte
+(sem o melhor par, sem os 3 melhores trades) e (5) queda em %, comparada com comprar e segurar.
+Os critérios estão no topo do arquivo e foram definidos antes de ver o resultado. Passar não prova
+lucro: só indica que não é um acaso óbvio. O teste final é a simulação ao vivo.
+
 ## Travas do robô (novo)
 Todas no `config.py`: esfriamento depois de perda (15 min), pausa de 60 min depois de 3 perdas
 seguidas, máximo de compras por dia, perda do dia (para), perda total da sessão (para e cria
