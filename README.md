@@ -35,14 +35,22 @@ O visual muda por modo: SIMULADO (azul), TESTNET (dourado, "dinheiro de mentira"
   ação cria/apaga o `PARAR.txt` (o robô não compra mais e encerra ao fechar a posição aberta).
 
 ## Comparar estratégias (novo)
-`python comparar.py` testa 4 estratégias (cruzamento 9/21 atual, tendência 20/50 + SMA200,
-rompimento + SMA200, reversão RSI) em 5m/15m/1h e 3 níveis de stop/alvo, com as mesmas taxas.
-- Validação "andando para frente": a config é escolhida nos blocos anteriores e testada no
-  seguinte. A coluna "PnL fora" é a que vale; "enganoso" mostra o quanto olhar o passado infla.
-- Veredito: PASSOU exige >= 40 trades fora da amostra, PnL > 0, fator de lucro >= 1,2 e
-  >= 60% dos blocos positivos. Se nenhuma passar, não ligue o modo real.
-- Reaproveita `dados_BTCUSDT_1m_180d.csv` (use `--csv` para apontar outro). Outros pares:
-  `--simbolo ETH/USDT`. Quem passar deve ser re-testado em outro período e outro par.
+`python comparar.py` testa 7 estratégias (a atual do robô, tendência 50/200, rompimento Donchian
+55/20, recuo na alta com RSI, reversão lateral com Bollinger+ADX e a CONFLUÊNCIA, que é a média
+das quatro, com e sem travas) em 1h/4h/1d, em BTC, ETH, SOL e BNB juntos (1500 dias).
+- Parâmetros FIXOS e clássicos, definidos antes de ver resultado (nada é otimizado no passado).
+- Execução conservadora (`motor.py`): taxa nas duas pontas, slippage, stop com salto, stop antes do alvo.
+- Veredito PASSOU exige: >= 30 trades somando os pares, PnL > 0, fator de lucro >= 1,2,
+  >= 60% dos blocos positivos e lucro maior que a pior queda. Se nada passar, não ligue o real.
+- Mostra "SEM travas" ao lado de "SEGURA" e compara com comprar e segurar.
+- Opções: `--simbolos BTC/USDT,ETH/USDT`, `--dias 2000`. Candles ficam salvos em `dados_*_1h_*d.csv`.
+- `python -m unittest testes -v` roda os testes (inclui a prova de que nenhuma estratégia olha o futuro).
+
+## Travas do robô (novo)
+Todas no `config.py`: esfriamento depois de perda (15 min), pausa de 60 min depois de 3 perdas
+seguidas, máximo de compras por dia, perda do dia (para), perda total da sessão (para e cria
+`TRAVA.txt`: o robô se recusa a iniciar enquanto ele existir) e proteção contra dado ruim
+(candle velho ou preço que pula mais de 5% entre ciclos: o ciclo é ignorado e registrado como `DADOS`).
 
 ## Testnet da Binance (dinheiro de mentira)
 Valida ordens de verdade (mínimos, casas, taxa em BTC) sem risco. Os candles continuam vindo do

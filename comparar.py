@@ -1,43 +1,40 @@
-"""Comparador de estratégias com validação "andando para frente" (walk-forward).
+"""Comparador de estratégias, em vários pares, com o mesmo rigor para todas.
 
-Testa várias estratégias x timeframes x níveis de stop/alvo, com as MESMAS taxas e
-slippage do backtest.py, e diz com honestidade se alguma passou ou não.
+Testa as estratégias de estrategias.py (a atual do robô, tendência, rompimento Donchian, recuo na
+alta, reversão lateral, e a CONFLUÊNCIA, que combina as quatro) nos timeframes de 1h, 4h e 1d.
 
 Como evita se enganar:
-- O período é dividido em blocos (padrão 6). Para cada bloco, a configuração de
-  stop/alvo é ESCOLHIDA olhando só os blocos anteriores e TESTADA no bloco seguinte,
-  sem ver o futuro. A tabela principal usa só esses resultados "fora da amostra".
-- A coluna "enganoso" mostra o melhor resultado olhando o passado todo: serve para
-  você ver o quanto isso inflaciona o número.
-- Testar muitas combinações faz alguma parecer boa por pura sorte. Por isso o
-  veredito exige critérios mínimos, e quem passar deve ser re-testado em outro
-  período e em outro par (--simbolo ETH/USDT) antes de qualquer confiança.
+- Parâmetros FIXOS e clássicos, definidos antes de ver resultado. Nada é otimizado no passado.
+- Mesmas taxas (0,1% por lado) e slippage para todas; execução conservadora (ver motor.py).
+- Vários pares juntos: uma ideia que só funciona em UMA moeda, provavelmente é sorte.
+- O período é dividido em blocos; ideia boa é positiva na maioria deles, não só num trecho.
+- Mostra o "SEM travas" ao lado do "SEGURA", para você ver o que as travas realmente fazem.
+- Compara com comprar e segurar, incluindo a pior queda.
 
 Uso (só dados públicos, sem chave):
-    python comparar.py                     # BTC/USDT, 180 dias
-    python comparar.py --dias 365
-    python comparar.py --base 1m --csv dados_BTCUSDT_1m_180d.csv   # reaproveita o que já baixou
-    python comparar.py --simbolo ETH/USDT
+    python comparar.py                          # BTC, ETH, SOL e BNB, 1500 dias
+    python comparar.py --simbolos BTC/USDT      # só um par
+    python comparar.py --dias 2000
 """
 import argparse
-import glob
 import os
 from datetime import datetime, timezone
 
 import backtest
 import config
+import estrategias
+import motor
 
-TIMEFRAMES = {"5m": 5, "15m": 15, "1h": 60}          # em minutos, a partir do candle de 1m
-RISCOS = [(0.01, 0.015), (0.02, 0.03), (0.03, 0.06)]  # (stop, alvo)
-AQUECIMENTO = 210                                     # candles ignorados p/ os indicadores
-MIN_TRADES = 40
+TF_MIN = {"1h": 60, "4h": 240, "1d": 1440}
+SIMBOLOS_PADRAO = "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT"
+MIN_TRADES = 30
 MIN_FATOR_LUCRO = 1.2
 MIN_BLOCOS_POSITIVOS = 0.6
 
 
-# ----------------------------------------------------------------- dados
+# ----------------------------------------------------------------------- dados
 def reamostrar(candles_base, minutos, base_min):
-    """Junta candles base (ex.: 5m) em candles de `minutos` (descarta o último, incompleto)."""
+    """Junta candles base (ex.: 1h) em candles de `minutos` (descarta o último, incompleto)."""
     if minutos == base_min:
         return candles_base
     ms = minutos * 60_000
@@ -52,203 +49,135 @@ def reamostrar(candles_base, minutos, base_min):
     for k in ordem[:-1]:
         g = grupos[k]
         saida.append({"tempo": k * ms, "abertura": g[0]["abertura"],
-                      "maxima": max(x["maxima"] for x in g),
-                      "minima": min(x["minima"] for x in g),
-                      "fechamento": g[-1]["fechamento"],
-                      "volume": sum(x["volume"] for x in g)})
+                      "maxima": max(x["maxima"] for x in g), "minima": min(x["minima"] for x in g),
+                      "fechamento": g[-1]["fechamento"], "volume": sum(x["volume"] for x in g)})
     return saida
 
 
-def obter_candles(simbolo, dias, base, caminho_csv):
-    if caminho_csv:
-        return backtest.ler_csv(caminho_csv)
-    padrao = f"dados_{simbolo.replace('/', '')}_{base}_{dias}d.csv"
-    if os.path.exists(padrao):
-        print(f"Usando {padrao} (já baixado)")
-        return backtest.ler_csv(padrao)
-    print(f"Baixando {dias} dias de {simbolo} em candles de {base}...")
-    candles = backtest.baixar_historico(simbolo, base, dias)
-    backtest.salvar_csv(candles, padrao)
+def obter_candles_1h(simbolo, dias):
+    arquivo = f"dados_{simbolo.replace('/', '')}_1h_{dias}d.csv"
+    if os.path.exists(arquivo):
+        print(f"  {simbolo}: usando {arquivo} (já baixado)")
+        return backtest.ler_csv(arquivo)
+    print(f"  {simbolo}: baixando {dias} dias em candles de 1h...")
+    candles = backtest.baixar_historico(simbolo, "1h", dias)
+    backtest.salvar_csv(candles, arquivo)
     return candles
 
 
-# ----------------------------------------------------------- indicadores
-def sma(v, n):
-    saida, soma = [None] * len(v), 0.0
-    for i, x in enumerate(v):
-        soma += x
-        if i >= n:
-            soma -= v[i - n]
-        if i >= n - 1:
-            saida[i] = soma / n
-    return saida
-
-
-def rsi(v, n=14):
-    saida = [None] * len(v)
-    if len(v) <= n:
-        return saida
-    ganho = perda = 0.0
-    for i in range(1, n + 1):
-        d = v[i] - v[i - 1]
-        ganho += max(d, 0)
-        perda += max(-d, 0)
-    ganho, perda = ganho / n, perda / n
-    saida[n] = 100.0 if perda == 0 else 100 - 100 / (1 + ganho / perda)
-    for i in range(n + 1, len(v)):
-        d = v[i] - v[i - 1]
-        ganho = (ganho * (n - 1) + max(d, 0)) / n
-        perda = (perda * (n - 1) + max(-d, 0)) / n
-        saida[i] = 100.0 if perda == 0 else 100 - 100 / (1 + ganho / perda)
-    return saida
-
-
-# ------------------------------------------------------------ estratégias
-# Cada uma recebe os candles e devolve uma lista de bool (comprar no fechamento i).
-# O sinal em i usa só dados até i (sem olhar o futuro).
-def est_cruzamento(candles):
-    """Baseline: a estratégia atual do robô (média 9 cruza acima da 21)."""
-    f = [c["fechamento"] for c in candles]
-    r, l = sma(f, 9), sma(f, 21)
-    return [i > 21 and r[i - 1] <= l[i - 1] and r[i] > l[i] for i in range(len(f))]
-
-
-def est_tendencia(candles):
-    """Cruzamento 20/50 para cima, só quando o preço está acima da média de 200."""
-    f = [c["fechamento"] for c in candles]
-    r, l, t = sma(f, 20), sma(f, 50), sma(f, 200)
-    return [i > 200 and r[i - 1] <= l[i - 1] and r[i] > l[i] and f[i] > t[i]
-            for i in range(len(f))]
-
-
-def est_rompimento(candles, janela=20):
-    """Rompimento: fecha acima da máxima dos 20 candles anteriores, em tendência de alta."""
-    f = [c["fechamento"] for c in candles]
-    mx = [c["maxima"] for c in candles]
-    t = sma(f, 200)
-    return [i > 200 and f[i] > max(mx[i - janela:i]) and f[i - 1] <= max(mx[i - 1 - janela:i - 1])
-            and f[i] > t[i] for i in range(len(f))]
-
-
-def est_rsi(candles):
-    """Reversão: RSI(14) sai da zona de sobrevenda (cruza 30 para cima)."""
-    f = [c["fechamento"] for c in candles]
-    r = rsi(f, 14)
-    return [i > 14 and r[i - 1] is not None and r[i - 1] < 30 <= r[i] for i in range(len(f))]
-
-
-ESTRATEGIAS = {
-    "cruzamento 9/21 (atual)": est_cruzamento,
-    "tendência 20/50 + SMA200": est_tendencia,
-    "rompimento 20 + SMA200": est_rompimento,
-    "reversão RSI<30": est_rsi,
-}
-
-
-# --------------------------------------------------------- walk-forward
-def pnl_por_bloco(candles, sinais, risco, slippage, limites):
-    """Simula cada bloco separadamente. Retorna lista de listas de pnl por trade."""
-    stop, alvo = risco
-    saida = []
-    for a, b in limites:
-        trades, _ = backtest.simular(candles[a:b], stop=stop, alvo=alvo, slippage=slippage,
-                                     sinais=sinais[a:b], janela=0)
-        saida.append([t["pnl"] for t in trades])
-    return saida
-
-
-def avaliar(candles, sinais, slippage, n_blocos):
-    n = len(candles)
-    passo = (n - AQUECIMENTO) // n_blocos
-    limites = [(AQUECIMENTO + k * passo, AQUECIMENTO + (k + 1) * passo) for k in range(n_blocos)]
-    por_risco = {r: pnl_por_bloco(candles, sinais, r, slippage, limites) for r in RISCOS}
-
-    oos, escolhas, blocos_oos = [], [], []
-    for k in range(1, n_blocos):
-        melhor = max(RISCOS, key=lambda r: sum(sum(b) for b in por_risco[r][:k]))
-        escolhas.append(melhor)
-        oos.extend(por_risco[melhor][k])
-        blocos_oos.append(sum(por_risco[melhor][k]))
-
-    enganoso = max(sum(sum(b) for b in por_risco[r]) for r in RISCOS)
-    ganhos = sum(x for x in oos if x > 0)
-    perdas = -sum(x for x in oos if x <= 0)
+# ------------------------------------------------------------------ agregação
+def juntar(por_par):
+    """Soma os resultados de todos os pares para uma estratégia+timeframe."""
+    ms = list(por_par.values())
+    ganhos, perdas = sum(m["ganhos"] for m in ms), sum(m["perdas"] for m in ms)
+    trades = sum(m["trades"] for m in ms)
+    blocos = [b for m in ms for b in m["blocos"]]  # cada (par, bloco) com operação conta uma vez
     return {
-        "trades": len(oos),
-        "acerto": 100 * sum(1 for x in oos if x > 0) / len(oos) if oos else 0.0,
-        "pnl": sum(oos),
+        "trades": trades,
+        "acerto": 100 * sum(m["vitorias"] for m in ms) / trades if trades else 0.0,
+        "pnl": sum(m["pnl"] for m in ms),
         "fator": (ganhos / perdas) if perdas > 0 else (float("inf") if ganhos else 0.0),
-        "blocos_pos": sum(1 for x in blocos_oos if x > 0) / len(blocos_oos),
-        "enganoso": enganoso,
-        "risco": max(set(escolhas), key=escolhas.count),
-        "buy_hold": 100 * (candles[limites[-1][1] - 1]["fechamento"]
-                           / candles[limites[0][1] - 1]["fechamento"] - 1),
+        "dd": max(m["dd"] for m in ms), "pior_seq": max(m["pior_seq"] for m in ms),
+        "blocos_pos": (sum(1 for b in blocos if b > 0) / len(blocos)) if blocos else 0.0,
+        "mercado": 100 * sum(m["mercado"] for m in ms) / len(ms),
+        "por_par": {s: (m["pnl"], m["trades"]) for s, m in por_par.items()},
     }
 
 
 def passou(m):
     return (m["trades"] >= MIN_TRADES and m["pnl"] > 0 and m["fator"] >= MIN_FATOR_LUCRO
-            and m["blocos_pos"] >= MIN_BLOCOS_POSITIVOS)
+            and m["blocos_pos"] >= MIN_BLOCOS_POSITIVOS and m["pnl"] >= m["dd"])
 
 
+def abrev(simbolo):
+    return simbolo.split("/")[0]
+
+
+# ------------------------------------------------------------------ principal
 def principal():
-    p = argparse.ArgumentParser(description="Compara estratégias com walk-forward")
-    p.add_argument("--simbolo", default=config.SIMBOLO)
-    p.add_argument("--dias", type=int, default=180)
-    p.add_argument("--base", default="5m", choices=["1m", "5m"],
-                   help="candle a baixar (5m é 5x mais rápido e basta p/ 5m/15m/1h)")
-    p.add_argument("--csv", help="CSV de candles já baixado (informe --base igual ao do arquivo)")
-    p.add_argument("--blocos", type=int, default=6)
+    p = argparse.ArgumentParser(description="Compara estratégias em vários pares")
+    p.add_argument("--simbolos", default=SIMBOLOS_PADRAO, help="separados por vírgula")
+    p.add_argument("--dias", type=int, default=1500)
     p.add_argument("--slippage", type=float, default=0.0005)
+    p.add_argument("--blocos", type=int, default=6)
     a = p.parse_args()
+    simbolos = [s.strip().upper() for s in a.simbolos.split(",") if s.strip()]
 
-    base_min = int(a.base[:-1])
-    base = obter_candles(a.simbolo, a.dias, a.base, a.csv)
-    ini = datetime.fromtimestamp(base[0]["tempo"] / 1000, timezone.utc)
-    fim = datetime.fromtimestamp(base[-1]["tempo"] / 1000, timezone.utc)
-    print(f"\n{a.simbolo}: {len(base)} candles de {a.base}, {ini:%Y-%m-%d} a {fim:%Y-%m-%d} | "
-          f"taxa {config.TAXA:.2%}/lado, slippage {a.slippage:.2%}, {a.blocos} blocos "
-          f"(o 1º só treina; PnL em USDT por ordem de US$ {config.VALOR_POR_ORDEM_USDT:.0f})\n")
+    print(f"\nDados ({a.dias} dias, candles de 1h):")
+    candles = {}  # (simbolo, tf) -> candles
+    for s in simbolos:
+        try:
+            base = obter_candles_1h(s, a.dias)
+        except Exception as erro:  # par sem histórico / bloqueio: segue com os outros
+            print(f"  {s}: não consegui baixar ({erro}). Pulando.")
+            continue
+        if len(base) < 24 * 400:
+            print(f"  {s}: histórico curto demais ({len(base)} candles). Pulando.")
+            continue
+        for tf, minutos in TF_MIN.items():
+            candles[(s, tf)] = reamostrar(base, minutos, 60)
+    pares = sorted({s for s, _ in candles})
+    if not pares:
+        raise SystemExit("Nenhum par com dados suficientes.")
 
-    linhas, bh = [], None
-    for tf, minutos in TIMEFRAMES.items():
-        if minutos % base_min:
-            continue
-        candles = reamostrar(base, minutos, base_min)
-        if len(candles) < AQUECIMENTO + a.blocos * 30:
-            print(f"(pulando {tf}: poucos candles)")
-            continue
-        for nome, fn in ESTRATEGIAS.items():
-            m = avaliar(candles, fn(candles), a.slippage, a.blocos)
+    ini = datetime.fromtimestamp(candles[(pares[0], "1d")][0]["tempo"] / 1000, timezone.utc)
+    fim = datetime.fromtimestamp(candles[(pares[0], "1d")][-1]["tempo"] / 1000, timezone.utc)
+    print(f"\nPares: {', '.join(abrev(s) for s in pares)} | {ini:%Y-%m-%d} a {fim:%Y-%m-%d} | "
+          f"taxa {config.TAXA:.2%}/lado, slippage {a.slippage:.2%} | PnL em USDT por ordem de "
+          f"US$ {config.VALOR_POR_ORDEM_USDT:.0f}\nSimulando...", flush=True)
+
+    linhas = []
+    for nome, (fn, tfs) in estrategias.ESTRATEGIAS.items():
+        for tf in tfs:
+            por_par = {}
+            for s in pares:
+                c = candles[(s, tf)]
+                trades = motor.simular(c, fn(c), valor=config.VALOR_POR_ORDEM_USDT,
+                                       taxa=config.TAXA, slippage=a.slippage)
+                por_par[s] = motor.metricas(trades, len(c), n_blocos=a.blocos)
+            m = juntar(por_par)
             m["nome"], m["tf"] = nome, tf
             linhas.append(m)
-            bh = m["buy_hold"]
-        print(f"  {tf} pronto")
-
     linhas.sort(key=lambda m: m["pnl"], reverse=True)
-    cab = f"{'estratégia':26} {'tf':>4} {'trades':>6} {'acerto':>7} {'PnL fora':>9} " \
-          f"{'fator':>6} {'blocos+':>8} {'stop/alvo':>10} {'enganoso':>9}  veredito"
-    print("\n" + cab + "\n" + "-" * len(cab))
-    for m in linhas:
-        fator = "  inf" if m["fator"] == float("inf") else f"{m['fator']:6.2f}"
-        r = f"{m['risco'][0]:.0%}/{m['risco'][1]:.1%}"
-        print(f"{m['nome']:26} {m['tf']:>4} {m['trades']:6d} {m['acerto']:6.1f}% "
-              f"{m['pnl']:+9.2f} {fator} {m['blocos_pos']:7.0%} {r:>10} "
-              f"{m['enganoso']:+9.2f}  {'PASSOU' if passou(m) else 'reprovou'}")
 
-    print(f"\nPnL fora = resultado em blocos NÃO vistos na escolha (o que vale). "
-          f"'enganoso' = melhor config olhando o passado todo.\n"
-          f"Comprar e segurar nos mesmos blocos: {bh:+.1f}%.")
+    cab = (f"{'estratégia':33} {'tf':>3} {'trades':>6} {'acerto':>7} {'PnL':>8} {'fator':>6} "
+           f"{'pior queda':>10} {'seq.perd.':>9} {'blocos+':>8} {'no mercado':>10}  veredito")
+    print("\n" + cab + "\n" + "-" * (len(cab) + 9))
+    for m in linhas:
+        fator = "   inf" if m["fator"] == float("inf") else f"{m['fator']:6.2f}"
+        print(f"{m['nome']:33} {m['tf']:>3} {m['trades']:6d} {m['acerto']:6.1f}% {m['pnl']:+8.2f} {fator} "
+              f"{m['dd']:10.2f} {m['pior_seq']:9d} {m['blocos_pos']:7.0%} {m['mercado']:9.0f}%  "
+              f"{'PASSOU' if passou(m) else 'reprovou'}")
+
+    print("\nResultado por par (PnL USDT / nº de trades):")
+    for m in linhas:
+        det = " | ".join(f"{abrev(s)} {v[0]:+.2f}/{v[1]}" for s, v in m["por_par"].items())
+        print(f"  {m['nome']:33} {m['tf']:>3}  {det}")
+
+    print("\nComprar e segurar (para comparar; retorno e pior queda no período dos testes de 1 dia):")
+    for s in pares:
+        r, dd = motor.comprar_e_segurar(candles[(s, "1d")])
+        print(f"  {abrev(s):5} retorno {r:+7.1f}%   pior queda {dd:5.1f}%")
+
+    print("\nO que as travas fizeram (confluência SEM travas -> SEGURA):")
+    for tf in ("4h", "1d"):
+        sem = next((m for m in linhas if m["nome"] == "confluência SEM travas" and m["tf"] == tf), None)
+        com = next((m for m in linhas if m["nome"] == "CONFLUÊNCIA SEGURA" and m["tf"] == tf), None)
+        if sem and com:
+            print(f"  {tf}: trades {sem['trades']} -> {com['trades']} | PnL {sem['pnl']:+.2f} -> {com['pnl']:+.2f} | "
+                  f"pior queda {sem['dd']:.2f} -> {com['dd']:.2f} | pior sequência de perdas "
+                  f"{sem['pior_seq']} -> {com['pior_seq']}")
+
     ok = [m for m in linhas if passou(m)]
-    print(f"\nCritérios p/ passar: >= {MIN_TRADES} trades fora da amostra, PnL > 0, fator de "
-          f"lucro >= {MIN_FATOR_LUCRO}, >= {MIN_BLOCOS_POSITIVOS:.0%} dos blocos positivos.")
+    print(f"\nCritérios p/ passar: >= {MIN_TRADES} trades (todos os pares somados), PnL > 0, fator de lucro "
+          f">= {MIN_FATOR_LUCRO}, >= {MIN_BLOCOS_POSITIVOS:.0%} dos blocos positivos e lucro maior que a pior queda.")
     if not ok:
-        print("RESULTADO: NENHUMA estratégia passou. Operar com elas, hoje, perderia dinheiro "
-              "após taxas. Não ligue o modo real.")
+        print("RESULTADO: NENHUMA passou. Com estes critérios, nenhuma estratégia mostrou vantagem real "
+              "depois das taxas. Não ligue o modo real.")
     else:
-        print(f"RESULTADO: {len(ok)} passaram, de {len(linhas)} combinações testadas. Com tantas "
-              f"combinações, algumas passam por sorte. Antes de confiar: re-teste em outro "
-              f"período (--dias 365) e em outro par (--simbolo ETH/USDT), e só então simule ao vivo.")
+        print(f"RESULTADO: {len(ok)} de {len(linhas)} passaram: " + ", ".join(f"{m['nome']} ({m['tf']})" for m in ok) +
+              ".\nCom poucos trades por ano, a confiança é limitada: antes de qualquer dinheiro, rode a "
+              "simulação ao vivo por semanas (MODO_SIMULADO = True) e compare com este resultado.")
 
 
 if __name__ == "__main__":

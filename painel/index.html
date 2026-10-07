@@ -362,6 +362,9 @@ function renderStatus(e, d){
     f.textContent = 'Parada pedida.'; s.textContent = 'O robô não faz novas compras e encerra assim que fechar a posição aberta (se houver).';
   } else if (!d.vivo){
     f.textContent = 'Sem sinal do robô.'; s.textContent = 'O terminal do main.py pode ter sido fechado, ou o computador dormiu. Veja o terminal.';
+  } else if (!e.posicao && e.pausa_ate && e.pausa_ate > d.agora){
+    const h = new Date(e.pausa_ate).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    f.textContent = 'Em pausa de segurança.'; s.textContent = `Depois de perdas, o robô espera até ${h} para voltar a comprar. Ele continua ligado e vigiando.`;
   } else if (e.posicao){
     f.innerHTML = 'Comprado<span class="pontos"></span>'; s.textContent = 'Esperando o preço chegar no alvo (ganho) ou no stop (perda). O robô vende sozinho.';
   } else {
@@ -432,7 +435,7 @@ function renderStats(r){
 /* ---------- diário ---------- */
 const TIPO = {
   INICIO:['▶','--sky'], REGRAS:['§','--mut'], COMPRA:['▲','--aqua'], VENDA:['●','--lime'],
-  RECUSADA:['!','--gold'], ERRO:['×','--coral'], PARADO:['■','--gold']
+  RECUSADA:['!','--gold'], ERRO:['×','--coral'], PARADO:['■','--gold'], PAUSA:['‖','--gold'], DADOS:['~','--mut']
 };
 function textoEvento(x){
   const b = n => `<b>${n}</b>`;
@@ -445,6 +448,8 @@ function textoEvento(x){
     case 'RECUSADA': return 'Compra recusada: ' + esc(x.detalhe);
     case 'ERRO': return 'Erro: ' + esc(x.detalhe);
     case 'PARADO': return 'Robô parado: ' + esc(x.detalhe);
+    case 'PAUSA': return 'Pausa de segurança: ' + esc(x.detalhe);
+    case 'DADOS': return 'Dados suspeitos: ' + esc(x.detalhe);
     default: return esc(x.evento + ' ' + x.detalhe);
   }
 }
@@ -475,6 +480,7 @@ function detectarNovos(ev){
       else { aviso(`Stop acionado ${sg(x.pnl??0,3)} USDT`, COR.coral); tremida(); }
     }
     else if (x.evento==='PARADO') aviso('Robô parado: ' + x.detalhe, COR.gold);
+    else if (x.evento==='PAUSA') aviso('Pausa de segurança: ' + x.detalhe, COR.gold);
     else if (x.evento==='ERRO') aviso('Erro: ' + x.detalhe.slice(0,90), COR.coral);
     else if (x.evento==='RECUSADA') aviso('Compra recusada', COR.gold);
   });
