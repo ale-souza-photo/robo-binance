@@ -16,7 +16,7 @@ Como evita se enganar:
 Uso (só dados públicos, sem chave):
     python comparar.py                     # BTC/USDT, 180 dias
     python comparar.py --dias 365
-    python comparar.py --csv dados_BTCUSDT_1m_180d.csv   # reaproveita o que já baixou
+    python comparar.py --base 1m --csv dados_BTCUSDT_1m_180d.csv   # reaproveita o que já baixou
     python comparar.py --simbolo ETH/USDT
 """
 import argparse
@@ -36,13 +36,13 @@ MIN_BLOCOS_POSITIVOS = 0.6
 
 
 # ----------------------------------------------------------------- dados
-def reamostrar(candles_1m, minutos):
-    """Junta candles de 1m em candles de `minutos` (descarta o último, incompleto)."""
-    if minutos == 1:
-        return candles_1m
+def reamostrar(candles_base, minutos, base_min):
+    """Junta candles base (ex.: 5m) em candles de `minutos` (descarta o último, incompleto)."""
+    if minutos == base_min:
+        return candles_base
     ms = minutos * 60_000
     grupos, ordem = {}, []
-    for c in candles_1m:
+    for c in candles_base:
         k = c["tempo"] // ms
         if k not in grupos:
             grupos[k] = []
@@ -59,15 +59,15 @@ def reamostrar(candles_1m, minutos):
     return saida
 
 
-def obter_candles_1m(simbolo, dias, caminho_csv):
+def obter_candles(simbolo, dias, base, caminho_csv):
     if caminho_csv:
         return backtest.ler_csv(caminho_csv)
-    padrao = f"dados_{simbolo.replace('/', '')}_1m_{dias}d.csv"
+    padrao = f"dados_{simbolo.replace('/', '')}_{base}_{dias}d.csv"
     if os.path.exists(padrao):
         print(f"Usando {padrao} (já baixado)")
         return backtest.ler_csv(padrao)
-    print(f"Baixando {dias} dias de {simbolo} 1m (1 a 3 minutos)...")
-    candles = backtest.baixar_historico(simbolo, "1m", dias)
+    print(f"Baixando {dias} dias de {simbolo} em candles de {base}...")
+    candles = backtest.baixar_historico(simbolo, base, dias)
     backtest.salvar_csv(candles, padrao)
     return candles
 
@@ -195,21 +195,26 @@ def principal():
     p = argparse.ArgumentParser(description="Compara estratégias com walk-forward")
     p.add_argument("--simbolo", default=config.SIMBOLO)
     p.add_argument("--dias", type=int, default=180)
-    p.add_argument("--csv", help="CSV de candles de 1m já baixado")
+    p.add_argument("--base", default="5m", choices=["1m", "5m"],
+                   help="candle a baixar (5m é 5x mais rápido e basta p/ 5m/15m/1h)")
+    p.add_argument("--csv", help="CSV de candles já baixado (informe --base igual ao do arquivo)")
     p.add_argument("--blocos", type=int, default=6)
     p.add_argument("--slippage", type=float, default=0.0005)
     a = p.parse_args()
 
-    base = obter_candles_1m(a.simbolo, a.dias, a.csv)
+    base_min = int(a.base[:-1])
+    base = obter_candles(a.simbolo, a.dias, a.base, a.csv)
     ini = datetime.fromtimestamp(base[0]["tempo"] / 1000, timezone.utc)
     fim = datetime.fromtimestamp(base[-1]["tempo"] / 1000, timezone.utc)
-    print(f"\n{a.simbolo}: {len(base)} candles de 1m, {ini:%Y-%m-%d} a {fim:%Y-%m-%d} | "
+    print(f"\n{a.simbolo}: {len(base)} candles de {a.base}, {ini:%Y-%m-%d} a {fim:%Y-%m-%d} | "
           f"taxa {config.TAXA:.2%}/lado, slippage {a.slippage:.2%}, {a.blocos} blocos "
           f"(o 1º só treina; PnL em USDT por ordem de US$ {config.VALOR_POR_ORDEM_USDT:.0f})\n")
 
     linhas, bh = [], None
     for tf, minutos in TIMEFRAMES.items():
-        candles = reamostrar(base, minutos)
+        if minutos % base_min:
+            continue
+        candles = reamostrar(base, minutos, base_min)
         if len(candles) < AQUECIMENTO + a.blocos * 30:
             print(f"(pulando {tf}: poucos candles)")
             continue

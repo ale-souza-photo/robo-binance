@@ -38,6 +38,7 @@ def baixar_historico(simbolo, timeframe, dias, exchange=None):
     fim = exchange.milliseconds()
     desde = fim - dias * 24 * 3600 * 1000
     candles, cursor = [], desde
+    ultimo_aviso = -1
     while cursor < fim:
         lote = exchange.fetch_ohlcv(simbolo, timeframe=timeframe, since=cursor, limit=1000)
         if not lote:
@@ -47,6 +48,10 @@ def baixar_historico(simbolo, timeframe, dias, exchange=None):
         if proximo <= cursor:
             break
         cursor = proximo
+        pct = min(100, int(100 * (cursor - desde) / (fim - desde)))
+        if pct // 10 != ultimo_aviso:
+            ultimo_aviso = pct // 10
+            print(f"  baixando... {pct}%  ({len(candles)} candles)", flush=True)
     return _normalizar(candles)
 
 
