@@ -6,6 +6,7 @@ const ITENS = [
   { href: "/ativos", rotulo: "ATIVOS", chave: "ativos" },
   { href: "/analises", rotulo: "ANÁLISES", chave: "analises" },
   { href: "/mercado", rotulo: "MERCADO", chave: "mercado" },
+  { href: "/sinais", rotulo: "SINAIS", chave: "sinais" },
   { href: "/carteira", rotulo: "CARTEIRA", chave: "carteira" },
 ] as const;
 

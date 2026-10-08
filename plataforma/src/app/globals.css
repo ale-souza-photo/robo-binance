@@ -84,3 +84,19 @@ small{font-size:11px}
 .pulso{display:inline-block;animation:pulso 1.4s ease-in-out infinite}
 @keyframes pulso{0%,100%{opacity:1}50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.flash-up,.flash-down,.pulso{animation:none}}
+
+.selo{display:inline-block;padding:3px 9px;font:800 9.5px var(--ui);letter-spacing:.1em;border:1px solid var(--edge2);color:var(--mut);margin-bottom:4px;white-space:nowrap}
+.selo-indicio{color:var(--cyan);border-color:var(--cyan);background:rgba(79,209,255,.07)}
+.selo-menos_risco{color:var(--amber);border-color:var(--amber);background:rgba(255,179,71,.07)}
+.selo-sem_vantagem{color:var(--mut)}
+.selo-insuficiente{color:var(--mut);border-style:dashed}
+td.nome-regra{font-family:var(--ui);font-weight:700;max-width:260px}
+td small{font-family:var(--ui);font-weight:400;line-height:1.5;display:inline-block}
+
+@media(max-width:760px){
+  header.topo{padding:10px 14px;gap:10px}
+  .logo{font-size:20px;letter-spacing:.22em}
+  nav.menu{flex-wrap:wrap;flex-basis:100%;order:3;gap:0}
+  nav.menu a{padding:8px 10px;font-size:10px;letter-spacing:.1em}
+  main.pagina{padding:16px 12px 60px}
+}
