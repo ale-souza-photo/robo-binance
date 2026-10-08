@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+registro.csv
+estado.json
+estado.json.tmp
+dados_*.csv
+PARAR.txt
+.env
+.env.*
+*.zip
+TRAVA.txt
+dca_estado_*.json
+dca_estado_*.json.tmp
+dca_registro.csv
+dados_analise/
+analise_ativos.html

@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="pt-BR" data-modo="TESTNET">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trader Bit · Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05070a; --panel:#0b0f14; --panel2:#10161d; --field:#080b0f;
+  --edge:#2b2515; --edge2:#54451a; --grid:rgba(212,175,55,.07);
+  --gold:#d4af37; --gold2:#f4dd9a; --golddim:#8a7228;
+  --tx:#d9d4c3; --mut:#7d7b6c;
+  --up:#2ee59d; --down:#ff4d5e; --cyan:#4fd1ff; --amber:#ffb347;
+  --modo:var(--amber);
+  --serif:'Cormorant Garamond','Palatino Linotype',Georgia,serif;
+  --ui:'Manrope','Bahnschrift','Segoe UI',system-ui,sans-serif;
+  --mono:'JetBrains Mono','Cascadia Mono',Consolas,monospace;
+}
+[data-modo="SIMULADO"]{--modo:var(--cyan)}
+[data-modo="TESTNET"]{--modo:var(--amber)}
+[data-modo="REAL"]{--modo:var(--down)}
+
+*{box-sizing:border-box;margin:0}
+html{background:var(--bg)}
+body{font-family:var(--ui);color:var(--tx);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1100px 600px at 85% -10%,rgba(212,175,55,.09),transparent 60%),
+    radial-gradient(900px 500px at -5% 105%,rgba(79,209,255,.05),transparent 60%),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.012) 0 1px,transparent 1px 48px),var(--bg)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.pos{color:var(--up)} .neg{color:var(--down)}
+[data-modo="REAL"] body::before{content:"";position:fixed;inset:0;z-index:50;pointer-events:none;
+  box-shadow:inset 0 0 0 3px var(--down),inset 0 0 90px rgba(255,77,94,.35);animation:alerta 2.4s ease-in-out infinite}
+@keyframes alerta{50%{box-shadow:inset 0 0 0 3px var(--down),inset 0 0 140px rgba(255,77,94,.55)}}
+
+/* ---------- cabeçalho ---------- */
+header{position:relative;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 22px;
+  background:linear-gradient(#10151c,#07090d);border-bottom:1px solid var(--gold);box-shadow:0 1px 0 var(--edge)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{width:38px;height:38px;filter:drop-shadow(0 0 8px rgba(212,175,55,.45))}
+.logo .nome{font-family:var(--serif);font-weight:700;font-size:25px;letter-spacing:.34em;color:var(--gold2);line-height:1}
+.logo .sub{font-size:10px;letter-spacing:.2em;color:var(--mut);font-weight:800;margin-top:4px}
+.pill{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;font-weight:800;font-size:12px;letter-spacing:.14em;
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+  background:color-mix(in srgb,var(--modo) 16%,transparent);color:var(--modo);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--modo) 60%,transparent)}
+.pill small{font-weight:600;letter-spacing:.02em;color:var(--tx);opacity:.8;font-size:11px}
+.grow{flex:1}
+.relogio{font-family:var(--mono);font-weight:700;font-size:20px;color:var(--tx)}
+.beat{display:inline-flex;align-items:center;gap:9px;font-size:12px;color:var(--mut);font-weight:700;letter-spacing:.06em}
+.beat b{width:10px;height:10px;border-radius:50%;background:var(--up);box-shadow:0 0 0 0 rgba(46,229,157,.6);animation:bate 1.8s infinite}
+.beat.off b{background:var(--down);animation:none;box-shadow:none}
+@keyframes bate{70%{box-shadow:0 0 0 10px rgba(46,229,157,0)}100%{box-shadow:0 0 0 0 rgba(46,229,157,0)}}
+.btn{position:relative;border:0;background:transparent;padding:9px 18px;font-weight:800;font-size:12px;letter-spacing:.14em;color:var(--gold);
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);box-shadow:inset 0 0 0 1px var(--gold);background:rgba(212,175,55,.06);transition:.15s}
+.btn:hover{background:rgba(212,175,55,.18)}
+.btn.stop{color:var(--down);background:rgba(255,77,94,.07)}
+.btn.stop:hover{background:rgba(255,77,94,.2)}
+
+/* ---------- abas ---------- */
+.abas{display:flex;gap:4px;padding:8px 22px 0;background:#080b0f;border-bottom:1px solid var(--edge)}
+.aba{border:0;background:transparent;padding:10px 20px 9px;font-weight:800;font-size:11px;letter-spacing:.16em;color:var(--mut);border-bottom:2px solid transparent;transition:.15s}
+.aba:hover{color:var(--gold)}
+.aba.on{color:var(--gold2);border-bottom-color:var(--gold);background:linear-gradient(180deg,transparent,rgba(212,175,55,.07))}
+
+/* ---------- faixa de cotações ---------- */
+.tape{height:30px;overflow:hidden;background:#080b0f;border-bottom:1px solid var(--edge);position:relative}
+.tape::before,.tape::after{content:"";position:absolute;top:0;bottom:0;width:60px;z-index:2;pointer-events:none}
+.tape::before{left:0;background:linear-gradient(90deg,#080b0f,transparent)}
+.tape::after{right:0;background:linear-gradient(270deg,#080b0f,transparent)}
+.tape-in{display:flex;white-space:nowrap;will-change:transform;height:30px;align-items:center}
+.tk{display:inline-flex;align-items:baseline;gap:8px;padding:0 20px;font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--mut)}
+.tk b{font-family:var(--mono);font-size:13px;letter-spacing:0;color:var(--gold2)}
+.tk b.pos{color:var(--up)} .tk b.neg{color:var(--down)}
+.tk::after{content:"◆";color:var(--golddim);font-size:8px;margin-left:20px}
+
+/* ---------- layout ---------- */
+.wrap{max-width:1360px;margin:0 auto;padding:18px 18px 56px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+.card{position:relative;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--edge);padding:16px 18px}
+.card::before,.card::after{content:"";position:absolute;width:12px;height:12px;pointer-events:none}
+.card::before{left:-1px;top:-1px;border-left:2px solid var(--gold);border-top:2px solid var(--gold)}
+.card::after{right:-1px;bottom:-1px;border-right:2px solid var(--gold);border-bottom:2px solid var(--gold)}
+.card h2{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;letter-spacing:.16em;color:var(--gold2);text-transform:uppercase;margin-bottom:12px;
+  padding-bottom:10px;border-bottom:1px solid var(--edge)}
+.card h2::before{content:"";width:7px;height:7px;background:var(--gold);transform:rotate(45deg)}
+.c-hero{grid-column:span 8}.c-side{grid-column:span 4;display:flex;flex-direction:column;gap:14px}
+.c-lane{grid-column:span 12}.c-neural{grid-column:span 8}.c-candle{grid-column:span 4}
+.c-stat{grid-column:span 3}.c-feed{grid-column:span 6}.c-curve{grid-column:span 6}
+@media(max-width:1000px){.c-hero,.c-side,.c-neural,.c-candle,.c-feed,.c-curve{grid-column:span 12}.c-stat{grid-column:span 6}}
+
+.dim{opacity:.55;filter:saturate(.4)}
+.aviso,.sem-robo{display:none}
+.aviso.on{display:block;margin-bottom:14px;padding:9px 14px;border:1px solid var(--amber);color:var(--amber);font-size:12px;font-weight:800;letter-spacing:.06em;background:rgba(255,179,71,.07)}
+.sem-robo.on{display:block;max-width:640px;margin:40px auto}
+.sem-robo h3{font-family:var(--serif);font-size:26px;color:var(--gold2);margin-bottom:10px}
+.sem-robo p{color:var(--mut);line-height:1.6;margin-top:8px;font-size:14px}
+.sem-robo code{font-family:var(--mono);color:var(--gold2);background:var(--field);padding:2px 6px}
+
+/* preço */
+.preco-topo{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.par{font-size:12px;color:var(--mut);font-weight:800;letter-spacing:.14em}
+.par em{font-style:normal;color:var(--gold2)}
+.preco{font-size:clamp(34px,5.2vw,60px);font-weight:700;color:var(--gold2);line-height:1.05;text-shadow:0 0 28px rgba(212,175,55,.25)}
+.preco small{font-size:.38em;color:var(--golddim);margin-right:8px;font-weight:500}
+.preco.sobe{animation:fs .9s}.preco.desce{animation:fd .9s}
+@keyframes fs{0%{color:var(--up);text-shadow:0 0 30px rgba(46,229,157,.6)}}
+@keyframes fd{0%{color:var(--down);text-shadow:0 0 30px rgba(255,77,94,.6)}}
+.delta{font-family:var(--mono);font-size:15px;font-weight:700;margin-top:6px}
+.mini{display:flex;gap:22px;flex-wrap:wrap;margin:10px 0 4px}
+.mini div{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--mut)}
+.mini b{display:block;font-family:var(--mono);font-size:14px;letter-spacing:0;color:var(--tx);margin-top:3px;font-weight:700}
+.chart{position:relative;height:330px}
+.chart canvas{width:100%;height:100%;display:block}
+.dica{position:absolute;pointer-events:none;opacity:0;padding:4px 9px;font:700 11px var(--mono);background:rgba(5,7,10,.9);border:1px solid var(--edge2);color:var(--gold2);transition:opacity .15s}
+.legenda{display:flex;gap:16px;flex-wrap:wrap;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--mut);margin-top:8px}
+.legenda span::before{content:"";display:inline-block;width:14px;height:3px;background:var(--c,#fff);margin-right:7px;vertical-align:middle}
+.legenda span.s::before{display:none}
+
+/* freio */
+.gauge{display:flex;flex-direction:column;align-items:center}
+.gauge canvas{width:240px;height:116px}
+.gauge .txt{text-align:center;margin-top:2px}
+.gauge .txt b{display:block;font-family:var(--mono);font-size:22px;font-weight:700}
+.gauge .txt span{font-size:10px;color:var(--mut);letter-spacing:.14em;font-weight:800}
+.freio-txt{font-size:12px;color:var(--mut);line-height:1.55;text-align:center;margin-top:6px}
+.freio-txt b{color:var(--tx)}
+.status-frase{font-family:var(--serif);font-size:27px;font-weight:700;color:var(--gold2);line-height:1.15}
+.status-sub{font-size:13px;color:var(--mut);line-height:1.55;margin-top:8px}
+.status-erro{font-size:12px;color:var(--down);margin-top:8px}
+.pontos::after{content:"";animation:pt 1.4s steps(4,end) infinite}
+@keyframes pt{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+
+/* pista */
+.lane-topo{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.lane-info{font-size:13px;color:var(--mut)}
+.lane-info b{font-family:var(--mono)}
+.pista{position:relative;height:96px;margin:30px 12px 10px}
+.trilho-g{position:absolute;left:0;right:0;top:38px;height:10px;background:linear-gradient(90deg,var(--down),#7c4a2d 30%,var(--gold) 55%,var(--up));opacity:.75;
+  clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.marca{position:absolute;top:26px;width:2px;height:34px;background:var(--tx);opacity:.8}
+.marca span{position:absolute;top:-17px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--tx)}
+.bola{position:absolute;top:33px;width:20px;height:20px;margin-left:-10px;background:var(--gold2);transform:rotate(45deg);box-shadow:0 0 0 4px rgba(212,175,55,.2),0 0 18px var(--gold);transition:left .8s cubic-bezier(.2,.8,.2,1)}
+.balao{position:absolute;top:-6px;transform:translateX(-50%);padding:3px 9px;font-size:11px;font-weight:700;background:var(--gold);color:#120d02;transition:left .8s cubic-bezier(.2,.8,.2,1);white-space:nowrap}
+.pista.vazia .marca{display:none}
+.ponta{position:absolute;top:58px;font-size:11px;font-weight:800;letter-spacing:.1em;line-height:1.5}
+.ponta small{display:block;font-weight:600;letter-spacing:0;color:var(--mut);font-size:11px}
+.ponta.esq{left:0;color:var(--down)}.ponta.dir{right:0;text-align:right;color:var(--up)}
+
+/* neural / candles */
+.neural-box{position:relative;height:250px}.neural-box canvas,.candle-box canvas{width:100%;height:100%;display:block}
+.candle-box{height:250px}
+.nota-mini{font-size:10px;color:var(--mut);letter-spacing:.08em;margin-top:8px;line-height:1.5}
+
+/* stats */
+.stat .valor{font-family:var(--mono);font-size:34px;font-weight:700;color:var(--gold2);line-height:1.1}
+.stat .nota{font-size:11px;color:var(--mut);margin-top:8px;line-height:1.5}
+.barra{height:5px;background:#12181f;margin-top:9px}.barra i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--golddim),var(--gold2));transition:width .8s}
+
+/* diário */
+.feed{list-style:none;padding:0;max-height:300px;overflow:auto}
+.feed li{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid rgba(43,37,21,.6);font-size:13px;line-height:1.45;animation:entra .5s}
+@keyframes entra{from{opacity:0;transform:translateX(-8px)}}
+.feed .ic{flex:none;width:24px;height:24px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 45%,transparent)}
+.feed time{display:block;font:500 11px var(--mono);color:var(--mut);margin-top:2px}
+.feed b{font-family:var(--mono);color:var(--tx)}
+.vazio{color:var(--mut);font-size:13px}
+.curva-box{height:250px}.curva-box canvas{width:100%;height:100%;display:block}
+
+/* toasts */
+.toasts{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px}
+.toast{padding:11px 16px;background:#0b0f14;border:1px solid var(--c);color:var(--c);font-weight:800;font-size:13px;letter-spacing:.04em;box-shadow:0 0 24px color-mix(in srgb,var(--c) 30%,transparent);animation:entra .4s}
+#confete{position:fixed;inset:0;z-index:55;pointer-events:none}
+#flash{position:fixed;inset:0;z-index:54;pointer-events:none;background:radial-gradient(circle,transparent 40%,rgba(255,77,94,.35));opacity:0}
+#flash.on{animation:fl .8s}@keyframes fl{0%{opacity:1}100%{opacity:0}}
+.treme{animation:tr .5s}@keyframes tr{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+
+dialog{border:1px solid var(--gold);background:#0b0f14;color:var(--tx);padding:24px;max-width:420px}
+dialog::backdrop{background:rgba(0,0,0,.7)}
+dialog h3{font-family:var(--serif);font-size:24px;color:var(--gold2);margin-bottom:8px}
+dialog p{font-size:13px;color:var(--mut);line-height:1.6}
+dialog .acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+/* ---------- DCA ---------- */
+.c-s4{grid-column:span 4}.c-d8{grid-column:span 8}.c-d4{grid-column:span 4}
+@media(max-width:1000px){.c-s4,.c-d8,.c-d4{grid-column:span 12}}
+.banner{display:none;margin-bottom:14px;padding:10px 14px;font-size:12.5px;font-weight:700;letter-spacing:.03em;line-height:1.5}
+.banner.on{display:block}
+.banner.erro{border:1px solid var(--down);color:var(--down);background:rgba(255,77,94,.08)}
+.banner.atencao{border:1px solid var(--amber);color:var(--amber);background:rgba(255,179,71,.07)}
+.dca-sub{font-size:12px;color:var(--mut);letter-spacing:.04em;margin:0 0 12px;line-height:1.5}
+.ativo{padding:13px 0;border-bottom:1px solid rgba(43,37,21,.6)}.ativo:last-child{border-bottom:0}
+.a-topo{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.a-topo b{font-family:var(--serif);font-size:22px;letter-spacing:.08em;color:var(--gold2);font-weight:700}
+.a-topo span{font-family:var(--mono);font-weight:700;font-size:15px}
+.a-barra{position:relative;height:8px;background:#12181f;margin:10px 0 9px}
+.a-barra i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--golddim),var(--gold2));transition:width .8s}
+.a-barra u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.a-det{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:11.5px;color:var(--mut)}
+.a-det b{color:var(--tx);font-family:var(--mono);font-weight:700}
+.prox-grande{font-family:var(--serif);font-size:36px;font-weight:700;color:var(--gold2);line-height:1.1}
+.prox-data{font-family:var(--mono);color:var(--mut);margin-top:6px;font-size:13px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin-top:14px;font-size:12.5px}
+.kv span{color:var(--mut)}.kv b{font-family:var(--mono);text-align:right;color:var(--tx);font-weight:700}
+.teto-l{display:flex;justify-content:space-between;margin-top:16px;font-size:10px;letter-spacing:.14em;font-weight:800;color:var(--mut)}
+.teto-l b{font-family:var(--mono);letter-spacing:0;color:var(--tx);font-size:12px}
+.regras{list-style:none;padding:0}.regras li{padding:8px 0 8px 18px;position:relative;font-size:12.5px;line-height:1.55;color:var(--mut);border-bottom:1px solid rgba(43,37,21,.5)}
+.regras li:last-child{border:0}.regras li::before{content:"◆";position:absolute;left:0;color:var(--golddim);font-size:8px;top:12px}
+.regras b{color:var(--tx)}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001s!important}}
+</style>
+</head>
+<body>
+<div id="flash"></div><canvas id="confete"></canvas>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 40 40" aria-hidden="true"><polygon points="20,2 38,20 20,38 2,20" fill="none" stroke="#d4af37" stroke-width="2"/><polygon points="20,10 30,20 20,30 10,20" fill="#d4af37"/><text x="20" y="25" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="14" fill="#120d02">B</text></svg>
+    <div><div class="nome">TRADER BIT</div><div class="sub">BTC · USDT &nbsp;TERMINAL</div></div>
+  </div>
+  <div class="pill" id="pill">—</div>
+  <div class="grow"></div>
+  <div class="relogio" id="relogio">--:--:--</div>
+  <div class="beat off" id="beat"><b></b><span id="beatTxt">CONECTANDO…</span></div>
+  <button class="btn stop" id="btnParar" type="button">PARAR O ROBÔ</button>
+</header>
+<nav class="abas" aria-label="Seções">
+  <button class="aba on" data-aba="trade" type="button">ROBÔ DE TRADE</button>
+  <button class="aba" data-aba="dca" type="button">DCA · COMPRA PERIÓDICA</button>
+</nav>
+<div class="tape"><div class="tape-in" id="tape"></div></div>
+
+<div class="wrap" id="tradeWrap">
+  <div class="aviso" id="avisoDemo">DEMONSTRAÇÃO · os dados desta tela são fictícios. O robô real não está sendo mostrado.</div>
+
+  <div class="card sem-robo" id="semRobo">
+    <h3>Nenhum robô rodando</h3>
+    <p>Abra outro terminal na pasta do robô e rode <code>python main.py</code>. Esta tela atualiza sozinha assim que ele começar.</p>
+    <p>Quer só ver como a tela fica? Feche este painel e rode <code>python painel_wallstreet.py --demo</code>.</p>
+  </div>
+
+  <main class="grid" id="conteudo">
+    <section class="card c-hero" aria-label="Preço e gráfico">
+      <div class="preco-topo">
+        <div>
+          <div class="par"><em id="par">BTC/USDT</em> · <span id="tf">—</span></div>
+          <div class="preco num" id="preco">—</div>
+          <div class="delta num" id="delta"></div>
+        </div>
+        <div class="mini">
+          <div>MÁXIMA<b id="mMax">—</b></div><div>MÍNIMA<b id="mMin">—</b></div>
+          <div>MÉDIA 9<b id="mS9">—</b></div><div>MÉDIA 21<b id="mS21">—</b></div><div>DIFERENÇA<b id="mDif">—</b></div>
+        </div>
+      </div>
+      <div class="chart" id="chartBox"><canvas id="chart"></canvas><div class="dica" id="dica"></div></div>
+      <div class="legenda">
+        <span style="--c:var(--gold2)">PREÇO</span><span style="--c:var(--gold)">MÉDIA RÁPIDA (9)</span><span style="--c:var(--cyan)">MÉDIA LENTA (21)</span>
+        <span class="s">▲ COMPRA &nbsp;● VENDA</span>
+      </div>
+    </section>
+
+    <div class="c-side">
+      <section class="card" aria-label="Freio do dia">
+        <h2>Freio do dia</h2>
+        <div class="gauge"><canvas id="gauge"></canvas><div class="txt"><b class="num" id="pnlDia">—</b><span>RESULTADO DE HOJE</span></div></div>
+        <p class="freio-txt" id="freioTxt"></p>
+      </section>
+      <section class="card" aria-label="O que o robô está fazendo" style="flex:1">
+        <h2>Situação do robô</h2>
+        <p class="status-frase" id="stFrase">—</p>
+        <p class="status-sub" id="stSub"></p>
+        <p class="status-erro" id="stErro" hidden></p>
+      </section>
+    </div>
+
+    <section class="card c-lane" id="laneCard" aria-label="Aposta atual">
+      <div class="lane-topo"><h2 id="laneTitulo" style="border:0;margin:0;padding:0">Aposta atual</h2><div class="lane-info" id="laneInfo"></div></div>
+      <div class="pista vazia" id="pista">
+        <div class="trilho-g"></div>
+        <div class="marca" id="marca"><span id="marcaTxt">entrada</span></div>
+        <div class="balao num" id="balao">—</div>
+        <div class="bola" id="bola"></div>
+        <div class="ponta esq" id="pEsq"></div>
+        <div class="ponta dir" id="pDir"></div>
+      </div>
+    </section>
+
+    <section class="card c-neural">
+      <h2>Fluxo de decisão · atividade dos sinais</h2>
+      <div class="neural-box"><canvas id="neural"></canvas></div>
+      <p class="nota-mini">Ilustração animada: mostra o estado dos sinais do robô (preço, médias, risco do dia). A decisão real continua sendo o cruzamento das médias, com as travas do config.py.</p>
+    </section>
+    <section class="card c-candle">
+      <h2>Candles · <span id="candleG">5</span> fechamentos</h2>
+      <div class="candle-box"><canvas id="candles"></canvas></div>
+      <p class="nota-mini">Montados a partir dos fechamentos que o robô grava (abertura, máxima, mínima e fechamento de cada bloco).</p>
+    </section>
+
+    <section class="card c-stat stat"><h2>Operações</h2><div class="valor num" id="sTrades">0</div><div class="nota" id="sTradesN">Compras que já foram vendidas.</div></section>
+    <section class="card c-stat stat"><h2>Taxa de acerto</h2><div class="valor num" id="sAcerto">—</div><div class="barra"><i id="sAcertoB"></i></div><div class="nota">Com stop 1% e alvo 1,5%, empata perto de 49%.</div></section>
+    <section class="card c-stat stat"><h2>Resultado total</h2><div class="valor num" id="sTotal">0,00</div><div class="nota">Em USDT, já descontadas as taxas.</div></section>
+    <section class="card c-stat stat"><h2>Fator de lucro</h2><div class="valor num" id="sFator">—</div><div class="nota">Acima de 1 = ganhou mais do que perdeu.</div></section>
+
+    <section class="card c-feed"><h2>Diário do robô</h2><ul class="feed" id="feed"></ul></section>
+    <section class="card c-curve"><h2>Curva de resultado</h2><div class="curva-box"><canvas id="curva"></canvas></div><div class="vazio" id="curvaVazia" hidden>Aparece depois da primeira venda.</div></section>
+  </main>
+</div>
+
+<div class="wrap" id="dcaWrap" hidden>
+  <div class="aviso" id="dcaDemo">DEMONSTRAÇÃO · a carteira desta tela é fictícia.</div>
+  <div class="banner erro" id="dcaAlerta" role="alert"></div>
+  <div class="banner atencao" id="dcaProblemas"></div>
+  <div class="banner atencao" id="dcaRede">O painel perdeu a conexão com o computador. Tentando de novo…</div>
+  <main class="grid">
+    <section class="card c-s4 stat"><h2>Investido</h2><div class="valor num" id="dInv">—</div><div class="nota" id="dInvN">Soma de todas as compras.</div></section>
+    <section class="card c-s4 stat"><h2>Valor atual</h2><div class="valor num" id="dVal">—</div><div class="nota">Quanto vale hoje o que você acumulou, pelo preço de referência da Binance (mercado real).</div></section>
+    <section class="card c-s4 stat"><h2>Resultado</h2><div class="valor num" id="dRes">—</div><div class="nota" id="dResN">Em relação ao que foi investido.</div></section>
+
+    <section class="card c-d8">
+      <h2>Carteira · meta e real</h2>
+      <p class="dca-sub">Barra dourada: quanto cada ativo ocupa hoje do que você investiu. Traço azul: a meta definida no config.py.</p>
+      <div id="dCarteira"></div>
+    </section>
+    <section class="card c-d4">
+      <h2>Próxima compra</h2>
+      <div class="prox-grande" id="pxTitulo">—</div>
+      <div class="prox-data" id="pxData"></div>
+      <div class="kv" id="pxKv"></div>
+      <div class="teto-l"><span>GASTO NO MÊS</span><b id="tetoTxt">—</b></div>
+      <div class="barra"><i id="tetoBarra"></i></div>
+    </section>
+
+    <section class="card c-d8">
+      <h2>Histórico de compras</h2>
+      <ul class="feed" id="dFeed"></ul>
+      <p class="vazio" id="dVazio" hidden>Nenhuma compra ainda. Para testar agora, no terminal: <code>python dca.py --forcar</code>. Sem isso, a primeira compra acontece no dia configurado do período.</p>
+    </section>
+    <section class="card c-d4">
+      <h2>Como funciona</h2>
+      <ul class="regras">
+        <li><b>Uma compra por período</b> (mês, semana ou dia). Rodar de novo no mesmo período não compra nada.</li>
+        <li>Cada compra vai para o <b>ativo mais abaixo da meta</b>.</li>
+        <li>Existe um <b>teto de gasto por mês</b>: ao chegar nele, o DCA para.</li>
+        <li>Se uma ordem falhar no meio, o período fica <b>PENDENTE</b> e o DCA espera você conferir na Binance.</li>
+        <li><b>Esta tela só mostra.</b> Quem compra é o comando <code>python dca.py</code>.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<dialog id="dlg">
+  <h3 id="dlgT">Parar o robô?</h3><p id="dlgP"></p>
+  <div class="acoes"><button class="btn" id="dlgNao" type="button">VOLTAR</button><button class="btn stop" id="dlgSim" type="button">PARAR</button></div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const COR = {gold:'#d4af37',gold2:'#f4dd9a',up:'#2ee59d',down:'#ff4d5e',cyan:'#4fd1ff',amber:'#ffb347',dim:'#8a7228',mut:'#7d7b6c'};
+const reduz = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const nf = (n,d=2) => (n==null||isNaN(n)) ? '—' : n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const sg = (n,d=2) => (n>0?'+':n<0?'−':'') + nf(Math.abs(n),d);
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v,a,b) => Math.min(b,Math.max(a,v));
+const hora = t => new Date(t).toLocaleTimeString('pt-BR');
+const hex = h => [1,3,5].map(i => parseInt(h.substr(i,2),16));
+const mix = (a,b,t) => { t = clamp(t,0,1); const A=hex(a),B=hex(b); return 'rgb('+A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')+')'; };
+const sma = (v,n,i) => i < n-1 ? null : v.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n;
+
+const ABAS = ['trade','dca'];
+let S = {aba:'trade', dca:null, modoTrade:'', d:null, ultimoPreco:null, vistos:null, feedKey:'', hover:null, erroRede:false, flash:{buy:0,win:0,loss:0},
+         gauge:0, gaugeAlvo:0, tapeOff:0, tapeW:1, tapeKey:''};
+
+/* ---------- números que "rolam" ---------- */
+function rola(el, para, fmt){
+  const de = el._v ?? para; el._v = para;
+  if (reduz || de === para){ el.textContent = fmt(para); return; }
+  const ini = performance.now();
+  (function passo(t){ const k = clamp((t-ini)/700,0,1), e = 1-Math.pow(1-k,3); el.textContent = fmt(de+(para-de)*e); if (k<1) requestAnimationFrame(passo); })(ini);
+}
+
+/* ---------- busca de dados (mesma API do painel original) ---------- */
+async function tick(){
+  try{
+    const r = await fetch('/api/estado',{cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    S.d = await r.json(); S.erroRede = false; render(S.d);
+  }catch(e){ S.erroRede = true; batimento(); }
+  setTimeout(tick, 2000);
+}
+
+function render(d){
+  const e = d.estado;
+  $('#avisoDemo').classList.toggle('on', d.demo);
+  $('#semRobo').classList.toggle('on', !e);
+  $('#conteudo').style.display = e ? '' : 'none';
+  $('#btnParar').style.display = e ? '' : 'none';
+  if(!e){ S.modoTrade = ''; aplicaModo(); if (S.aba!=='dca') $('#pill').innerHTML = 'SEM ROBÔ'; batimento(); S.tapeKey=''; montaTape(null); return; }
+  S.modoTrade = e.modo; aplicaModo();
+  const sub = {SIMULADO:'nenhuma ordem é enviada', TESTNET:'dinheiro de mentira', REAL:'DINHEIRO REAL'}[e.modo] || '';
+  if (S.aba !== 'dca') $('#pill').innerHTML = `${esc(e.modo)} <small>· ${sub}</small>`;
+  $('#par').textContent = e.simbolo; $('#tf').textContent = e.timeframe==='demo' ? 'DEMONSTRAÇÃO' : 'CANDLES DE '+String(e.timeframe).toUpperCase();
+  $('#conteudo').classList.toggle('dim', !d.vivo);
+  batimento(); renderPreco(e); renderStatus(e, d); renderAnel(e); renderPista(e); renderStats(d.resumo); renderFeed(d.eventos); renderBotao(d, e); detectarNovos(d.eventos);
+  S.candles = e.candles || []; S.marcas = d.eventos.filter(x=>x.evento==='COMPRA'||x.evento==='VENDA');
+  S.curva = d.resumo.curva; S.estado = e; S.resumo = d.resumo; S.vivo = d.vivo;
+  $('#curvaVazia').hidden = d.resumo.curva.length >= 2;
+  montaTape(d);
+}
+
+function batimento(){
+  const b = $('#beat'), t = $('#beatTxt'), d = S.d;
+  if (S.erroRede){ b.classList.add('off'); t.textContent = 'PAINEL SEM CONEXÃO COM O PC'; return; }
+  if (!d || !d.estado){ b.classList.add('off'); t.textContent = 'AGUARDANDO O ROBÔ'; return; }
+  const seg = Math.max(0, Math.round((d.agora - d.estado.atualizado)/1000));
+  if (d.estado.parado){ b.classList.add('off'); t.textContent = 'ROBÔ PARADO'; return; }
+  if (d.vivo){ b.classList.remove('off'); t.textContent = `AO VIVO · HÁ ${seg}s`; }
+  else { b.classList.add('off'); t.textContent = seg > 90 ? `SEM SINAL HÁ ${Math.round(seg/60)} MIN` : 'SEM SINAL DO ROBÔ'; }
+}
+
+function renderPreco(e){
+  const el = $('#preco');
+  if (e.preco == null){ el.innerHTML = 'Conectando à Binance…'; el.style.fontSize = '24px'; return; }
+  el.style.fontSize = '';
+  el.innerHTML = `<small>US$</small>${nf(e.preco)}`;
+  if (S.ultimoPreco != null && e.preco !== S.ultimoPreco){
+    el.classList.remove('sobe','desce'); void el.offsetWidth; el.classList.add(e.preco > S.ultimoPreco ? 'sobe' : 'desce');
+  }
+  S.ultimoPreco = e.preco;
+  const f = (e.candles||[]).map(c=>c[1]);
+  if (f.length){
+    const d0 = (e.preco/f[0]-1)*100, dl = $('#delta');
+    dl.className = 'delta num ' + (d0>=0?'pos':'neg'); dl.textContent = `${d0>=0?'▲':'▼'} ${sg(d0,2)}%  na janela`;
+    $('#mMax').textContent = nf(Math.max(...f)); $('#mMin').textContent = nf(Math.min(...f));
+    const i = f.length-1, a = sma(f,9,i), b = sma(f,21,i);
+    $('#mS9').textContent = a==null?'—':nf(a); $('#mS21').textContent = b==null?'—':nf(b);
+    const df = $('#mDif'); if (a!=null && b!=null){ const g=(a/b-1)*100; df.textContent = sg(g,3)+'%'; df.className = g>=0?'pos':'neg'; } else df.textContent='—';
+  }
+}
+
+function renderStatus(e, d){
+  const f = $('#stFrase'), s = $('#stSub'), er = $('#stErro');
+  er.hidden = !e.erro; if (e.erro) er.textContent = 'Último erro: ' + e.erro;
+  if (e.parado){ f.textContent = 'Robô parado.'; s.textContent = e.motivo_parada ? `Motivo: ${e.motivo_parada}. Para voltar, rode python main.py de novo.` : 'Para voltar, rode python main.py de novo.'; }
+  else if (d.parar_ativo){ f.textContent = 'Parada pedida.'; s.textContent = 'O robô não faz novas compras e encerra assim que fechar a posição aberta (se houver).'; }
+  else if (!d.vivo){ f.textContent = 'Sem sinal do robô.'; s.textContent = 'O terminal do main.py pode ter sido fechado, ou o computador dormiu. Veja o terminal.'; }
+  else if (!e.posicao && e.pausa_ate && e.pausa_ate > d.agora){
+    const h = new Date(e.pausa_ate).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    f.textContent = 'Em pausa de segurança.'; s.textContent = `Depois de perdas, o robô espera até ${h} para voltar a comprar. Ele continua ligado e vigiando.`;
+  } else if (e.posicao){ f.innerHTML = 'Comprado<span class="pontos"></span>'; s.textContent = 'Esperando o preço chegar no alvo (ganho) ou no stop (perda). O robô vende sozinho.'; }
+  else { f.innerHTML = 'Procurando entrada<span class="pontos"></span>'; s.textContent = 'Compra quando a linha rápida (dourada) cruzar para cima da lenta (azul). Isso pode levar horas.'; }
+}
+
+function renderAnel(e){
+  const lim = e.perda_max || 1, pnl = e.pnl_dia || 0;
+  S.gaugeAlvo = clamp((lim+pnl)/lim, 0, 1);
+  const el = $('#pnlDia'); el.className = 'num ' + (pnl>0?'pos':pnl<0?'neg':'');
+  rola(el, pnl, v => sg(v,2) + ' USDT');
+  $('#freioTxt').innerHTML = `Se o prejuízo do dia chegar a <b>−${nf(lim)} USDT</b>, o robô para sozinho.<br>Margem restante: <b>${nf(Math.max(lim+pnl,0))} USDT</b>.`;
+}
+
+function renderPista(e){
+  const p = e.posicao, pista = $('#pista'), preco = e.preco, bola = $('#bola'), balao = $('#balao'), marca = $('#marca');
+  if (p && preco != null){
+    pista.classList.remove('vazia'); $('#laneTitulo').textContent = 'Aposta atual';
+    const range = p.alvo - p.stop, r = clamp((preco - p.stop)/range, 0.02, 0.98), ent = clamp((p.preco - p.stop)/range, 0, 1);
+    const q = p.quantidade, tx = (e.taxa ?? 0.001) * 2 * p.preco * q;
+    const ganho = (p.alvo-p.preco)*q - tx, perda = (p.stop-p.preco)*q - tx, agora = (preco-p.preco)*q - tx;
+    bola.style.left = balao.style.left = (r*100)+'%'; marca.style.left = (ent*100)+'%'; $('#marcaTxt').textContent = 'COMPROU A ' + nf(p.preco);
+    balao.textContent = nf(preco);
+    $('#pEsq').innerHTML = `STOP · ${nf(p.stop)}<small>se tocar aqui: ${sg(perda,3)} USDT</small>`;
+    $('#pDir').innerHTML = `ALVO · ${nf(p.alvo)}<small>se tocar aqui: ${sg(ganho,3)} USDT</small>`;
+    $('#laneInfo').innerHTML = `${nf(q,5)} ${esc(e.simbolo.split('/')[0])} · se vendesse agora: <b class="${agora>=0?'pos':'neg'}">${sg(agora,3)} USDT</b>`;
+  } else {
+    pista.classList.add('vazia'); $('#laneTitulo').textContent = e.parado ? 'Compras travadas' : 'Perto de comprar?';
+    const f = (e.candles||[]).map(c=>c[1]), i = f.length-1, rap = sma(f,9,i), len = sma(f,21,i);
+    if (rap != null && len != null){
+      const g = (rap-len)/len, r = clamp(.5 + g/.006, .03, .97);
+      bola.style.left = balao.style.left = (r*100)+'%'; balao.textContent = g >= 0 ? 'RÁPIDA ACIMA' : 'RÁPIDA ABAIXO';
+      $('#laneInfo').textContent = e.parado ? 'O robô não vai mais comprar até você rodar python main.py de novo.' : g >= 0 ? 'A rápida já está acima da lenta: o cruzamento já aconteceu.' : `Faltam ${nf(Math.abs(g)*100,2)}% para a rápida alcançar a lenta.`;
+    } else { bola.style.left = balao.style.left = '50%'; balao.textContent = 'JUNTANDO DADOS'; $('#laneInfo').textContent = 'O robô precisa de 21 candles para calcular as médias.'; }
+    $('#pEsq').innerHTML = 'Rápida bem abaixo<small>longe de comprar</small>';
+    $('#pDir').innerHTML = 'Rápida acima da lenta<small>sinal de COMPRA</small>';
+  }
+}
+
+function renderStats(r){
+  rola($('#sTrades'), r.trades, v => Math.round(v));
+  $('#sTradesN').textContent = r.trades ? `${r.vitorias} no alvo, ${r.trades-r.vitorias} no stop.` : 'Compras que já foram vendidas.';
+  const ac = r.trades ? 100*r.vitorias/r.trades : null;
+  $('#sAcerto').textContent = ac==null ? '—' : nf(ac,0)+'%'; $('#sAcertoB').style.width = (ac||0)+'%';
+  const t = $('#sTotal'); t.className = 'valor num ' + (r.pnl_total>0?'pos':r.pnl_total<0?'neg':'');
+  rola(t, r.pnl_total, v => sg(v,2));
+  const f = $('#sFator'); f.textContent = r.fator==null ? '—' : nf(r.fator,2); f.className = 'valor num ' + (r.fator==null ? '' : r.fator>=1 ? 'pos' : 'neg');
+}
+
+/* ---------- diário ---------- */
+const TIPO = {INICIO:['▶','--cyan'],REGRAS:['§','--mut'],COMPRA:['▲','--up'],VENDA:['●','--up'],RECUSADA:['!','--amber'],ERRO:['×','--down'],PARADO:['■','--amber'],PAUSA:['‖','--amber'],DADOS:['~','--mut']};
+function textoEvento(x){
+  const b = n => `<b>${n}</b>`;
+  switch(x.evento){
+    case 'INICIO': return 'Robô iniciado. ' + esc(x.detalhe);
+    case 'REGRAS': return 'Regras da Binance carregadas. ' + esc(x.detalhe);
+    case 'COMPRA': return `Comprou ${b(nf(x.quantidade,5))} a ${b(nf(x.preco))}` + (x.detalhe ? ` · ${esc(x.detalhe)}` : '');
+    case 'VENDA': { const ok = (x.pnl??0) > 0; return `Vendeu ${ok?'no alvo':'no stop'} a ${b(nf(x.preco))} · resultado <b class="${ok?'pos':'neg'}">${sg(x.pnl??0,3)} USDT</b>`; }
+    case 'RECUSADA': return 'Compra recusada: ' + esc(x.detalhe);
+    case 'ERRO': return 'Erro: ' + esc(x.detalhe);
+    case 'PARADO': return 'Robô parado: ' + esc(x.detalhe);
+    case 'PAUSA': return 'Pausa de segurança: ' + esc(x.detalhe);
+    case 'DADOS': return 'Dados suspeitos: ' + esc(x.detalhe);
+    default: return esc(x.evento + ' ' + x.detalhe);
+  }
+}
+function renderFeed(ev){
+  const lista = ev.slice().reverse().slice(0,40), key = lista.map(x=>x.t+x.evento).join();
+  if (key === S.feedKey) return;
+  const velhas = new Set((S.feedKey||'').split(',')); S.feedKey = key;
+  const ul = $('#feed');
+  if (!lista.length){ ul.innerHTML = '<li class="vazio" style="animation:none">Nada aconteceu ainda. O robô escreve aqui cada compra, venda e aviso.</li>'; return; }
+  ul.innerHTML = lista.map(x => {
+    const [ic, cv] = TIPO[x.evento] || ['·','--mut'];
+    let cor = cv; if (x.evento==='VENDA') cor = (x.pnl??0) > 0 ? '--gold' : '--down';
+    const nova = velhas.has(x.t+x.evento) ? 'style="animation:none"' : '';
+    return `<li ${nova}><span class="ic" style="--c:var(${cor})">${ic}</span><div>${textoEvento(x)}<time>${hora(x.t)}</time></div></li>`;
+  }).join('');
+}
+
+/* ---------- novidades ---------- */
+function detectarNovos(ev){
+  const chaves = ev.map(x => x.t+'|'+x.evento);
+  if (!S.vistos){ S.vistos = new Set(chaves); return; }
+  ev.forEach((x,i) => {
+    if (S.vistos.has(chaves[i])) return; S.vistos.add(chaves[i]);
+    if (x.evento==='COMPRA'){ aviso(`Comprou ${nf(x.quantidade,5)} a ${nf(x.preco)}`, COR.up); S.flash.buy = 1; }
+    else if (x.evento==='VENDA'){
+      if ((x.pnl??0) > 0){ aviso(`Alvo! ${sg(x.pnl,3)} USDT`, COR.gold2); S.flash.win = 1; confete(); }
+      else { aviso(`Stop acionado ${sg(x.pnl??0,3)} USDT`, COR.down); S.flash.loss = 1; tremida(); }
+    }
+    else if (x.evento==='PARADO') aviso('Robô parado: ' + x.detalhe, COR.amber);
+    else if (x.evento==='PAUSA') aviso('Pausa de segurança: ' + x.detalhe, COR.amber);
+    else if (x.evento==='ERRO') aviso('Erro: ' + String(x.detalhe).slice(0,90), COR.down);
+    else if (x.evento==='RECUSADA') aviso('Compra recusada', COR.amber);
+  });
+}
+function aviso(txt, cor){
+  const t = document.createElement('div'); t.className = 'toast'; t.style.setProperty('--c', cor); t.textContent = txt;
+  $('#toasts').appendChild(t); setTimeout(()=>t.remove(), 6000);
+  while ($('#toasts').children.length > 4) $('#toasts').firstChild.remove();
+}
+function tremida(){
+  if (reduz) return;
+  const c = $('#laneCard'); c.classList.remove('treme'); void c.offsetWidth; c.classList.add('treme');
+  const f = $('#flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+}
+const cf = $('#confete'), cx = cf.getContext('2d'); let parts = [], cfRodando = false;
+function confete(){
+  if (reduz) return;
+  const w = cf.width = innerWidth, h = cf.height = innerHeight, cores = [COR.gold,COR.gold2,'#fff3c4',COR.up];
+  for (let i=0;i<130;i++) parts.push({x:w*(.3+Math.random()*.4), y:h*.35, vx:(Math.random()-.5)*13, vy:-Math.random()*12-3, g:.3+Math.random()*.15,
+    s:5+Math.random()*6, r:Math.random()*6.28, vr:(Math.random()-.5)*.4, c:cores[i%cores.length], v:1});
+  if (!cfRodando){ cfRodando = true; requestAnimationFrame(passoConfete); }
+}
+function passoConfete(){
+  cx.clearRect(0,0,cf.width,cf.height);
+  parts.forEach(p => { p.vy += p.g; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.vx *= .99; p.v -= .007;
+    cx.save(); cx.globalAlpha = Math.max(p.v,0); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.beginPath();
+    cx.moveTo(0,-p.s/1.6); cx.lineTo(p.s/1.6,0); cx.lineTo(0,p.s/1.6); cx.lineTo(-p.s/1.6,0); cx.closePath(); cx.fill(); cx.restore(); });
+  parts = parts.filter(p => p.v > 0 && p.y < cf.height+40);
+  if (parts.length) requestAnimationFrame(passoConfete); else { cfRodando = false; cx.clearRect(0,0,cf.width,cf.height); }
+}
+
+/* ---------- botão parar / cancelar (mesmo contrato do painel original) ---------- */
+function renderBotao(d, e){
+  const b = $('#btnParar');
+  if (e.parado || S.aba === 'dca'){ b.style.display = 'none'; return; }
+  b.style.display = '';
+  if (d.parar_ativo){ b.textContent = 'CANCELAR PARADA'; b.classList.remove('stop'); b.dataset.acao = 'retomar'; }
+  else { b.textContent = 'PARAR O ROBÔ'; b.classList.add('stop'); b.dataset.acao = 'parar'; }
+}
+async function chamar(acao){
+  try{ await fetch('/api/'+acao,{method:'POST',headers:{'X-Painel':'1'}}); }catch(e){}
+  fetch('/api/estado',{cache:'no-store'}).then(r=>r.json()).then(d=>{S.d=d; render(d);}).catch(()=>{});
+}
+$('#btnParar').addEventListener('click', () => {
+  if ($('#btnParar').dataset.acao === 'retomar'){ chamar('retomar'); return; }
+  $('#dlgT').textContent = 'Parar o robô?';
+  $('#dlgP').textContent = 'Ele não fará novas compras. Se houver uma posição aberta, ela continua até bater o alvo ou o stop, e então o robô encerra.';
+  const dlg = $('#dlg'); if (dlg.showModal) dlg.showModal(); else if (confirm('Parar o robô?')) chamar('parar');
+});
+$('#dlgNao').addEventListener('click', () => $('#dlg').close());
+$('#dlgSim').addEventListener('click', () => { $('#dlg').close(); chamar('parar'); });
+
+/* ---------- faixa de cotações ---------- */
+function montaTape(d){
+  const e = d && d.estado, itens = [];
+  if (!e){ itens.push(['TERMINAL','AGUARDANDO O ROBÔ','']); }
+  else {
+    const f = (e.candles||[]).map(c=>c[1]), i = f.length-1, a = sma(f,9,i), b = sma(f,21,i), r = d.resumo;
+    const d0 = f.length && e.preco!=null ? (e.preco/f[0]-1)*100 : null;
+    itens.push([e.simbolo, e.preco==null?'—':nf(e.preco), d0==null?'':(d0>=0?'pos':'neg')]);
+    if (d0!=null) itens.push(['JANELA', sg(d0,2)+'%', d0>=0?'pos':'neg']);
+    if (a!=null) itens.push(['MÉDIA 9', nf(a), '']);
+    if (b!=null) itens.push(['MÉDIA 21', nf(b), '']);
+    itens.push(['RESULTADO DO DIA', sg(e.pnl_dia||0,2)+' USDT', (e.pnl_dia||0)>=0?'pos':'neg']);
+    itens.push(['COMPRAS HOJE', String(e.trades_hoje ?? 0), '']);
+    itens.push(['OPERAÇÕES', String(r.trades), '']);
+    itens.push(['ACERTO', r.trades ? nf(100*r.vitorias/r.trades,0)+'%' : '—', '']);
+    itens.push(['FATOR DE LUCRO', r.fator==null?'—':nf(r.fator,2), r.fator==null?'':(r.fator>=1?'pos':'neg')]);
+    itens.push(['SINAL', String(e.sinal||'—'), '']);
+    itens.push(['MODO', String(e.modo), '']);
+    itens.push(['ROBÔ', e.parado ? 'PARADO' : d.vivo ? 'AO VIVO' : 'SEM SINAL', e.parado||!d.vivo ? 'neg':'pos']);
+  }
+  const unit = itens.map(([k,v,c]) => `<span class="tk">${esc(k)} <b class="${c}">${esc(v)}</b></span>`).join('');
+  const key = unit; if (key === S.tapeKey) return; S.tapeKey = key;
+  const box = $('#tape'); box.innerHTML = unit; const w = box.scrollWidth || 1;
+  const copias = Math.ceil((innerWidth + w) / w) + 1;
+  box.innerHTML = unit.repeat(copias); S.tapeW = w;
+}
+
+/* ---------- desenho ---------- */
+const cv = $('#chart'), g = cv.getContext('2d'), cvc = $('#curva'), gc = cvc.getContext('2d'), cvn = $('#neural'), gn = cvn.getContext('2d'),
+      cvk = $('#candles'), gk = cvk.getContext('2d'), cvg = $('#gauge'), gg = cvg.getContext('2d');
+function ajusta(c){ const r = c.getBoundingClientRect(), k = devicePixelRatio||1; c.width = Math.round(r.width*k); c.height = Math.round(r.height*k); return k; }
+function ajustaTodos(){ [cv,cvc,cvn,cvk,cvg].forEach(ajusta); }
+addEventListener('resize', ajustaTodos); ajustaTodos();
+if (window.ResizeObserver){ const ro = new ResizeObserver(es => es.forEach(en => ajusta(en.target))); [cv,cvc,cvn,cvk,cvg].forEach(c => ro.observe(c)); }
+function linha(ctx, pts, cor, larg, k){
+  ctx.beginPath(); let ini = false;
+  pts.forEach(([x,y]) => { if (y==null) return; if (!ini){ ctx.moveTo(x,y); ini = true; } else ctx.lineTo(x,y); });
+  ctx.strokeStyle = cor; ctx.lineWidth = larg*k; ctx.lineJoin = 'round'; ctx.stroke();
+}
+
+function desenhaPreco(ts){
+  const k = devicePixelRatio||1, W = cv.width, H = cv.height; g.clearRect(0,0,W,H);
+  const c = S.candles || []; if (c.length < 2) return;
+  const f = c.map(x=>x[1]), e = S.estado, p = e && e.posicao;
+  let lo = Math.min(...f), hi = Math.max(...f); if (p){ lo = Math.min(lo, p.stop); hi = Math.max(hi, p.alvo); }
+  const pad = (hi-lo)*.1 || 1; lo -= pad; hi += pad;
+  const L = 8*k, R = W - 74*k, T = 10*k, B = H - 22*k;
+  const X = i => L + (R-L)*i/(f.length-1), Y = v => B - (B-T)*(v-lo)/(hi-lo);
+  g.font = `${11*k}px JetBrains Mono, Consolas, monospace`; g.textAlign = 'left';
+  for (let i=0;i<=4;i++){ const v = lo + (hi-lo)*i/4, y = Y(v);
+    g.strokeStyle = 'rgba(212,175,55,.09)'; g.lineWidth = k; g.beginPath(); g.moveTo(L,y); g.lineTo(R,y); g.stroke();
+    g.fillStyle = COR.mut; g.fillText(nf(v,0), R+8*k, y+4*k); }
+  for (let i=0;i<=5;i++){ const ix = Math.round((f.length-1)*i/5), x = X(ix);
+    g.strokeStyle = 'rgba(212,175,55,.05)'; g.beginPath(); g.moveTo(x,T); g.lineTo(x,B); g.stroke();
+    g.fillStyle = COR.mut; g.textAlign = i==0?'left':i==5?'right':'center';
+    g.fillText(new Date(c[ix][0]).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), x, H-6*k); }
+  g.textAlign = 'left';
+  const pts = f.map((v,i)=>[X(i),Y(v)]);
+  const gr = g.createLinearGradient(0,T,0,B); gr.addColorStop(0,'rgba(212,175,55,.28)'); gr.addColorStop(1,'rgba(212,175,55,0)');
+  g.beginPath(); pts.forEach(([x,y],i)=> i?g.lineTo(x,y):g.moveTo(x,y)); g.lineTo(R,B); g.lineTo(L,B); g.closePath(); g.fillStyle = gr; g.fill();
+  linha(g, f.map((_,i)=>{const v=sma(f,21,i);return [X(i), v==null?null:Y(v)]}), COR.cyan, 1.8, k);
+  linha(g, f.map((_,i)=>{const v=sma(f,9,i);return [X(i), v==null?null:Y(v)]}), COR.gold, 1.8, k);
+  g.save(); g.shadowColor = 'rgba(244,221,154,.7)'; g.shadowBlur = 10*k; linha(g, pts, COR.gold2, 2.2, k); g.restore();
+  if (p){
+    [[p.alvo,COR.up,'ALVO'],[p.stop,COR.down,'STOP'],[p.preco,'#ffffff','ENTRADA']].forEach(([v,cor,rot]) => {
+      const y = Y(v); g.setLineDash([6*k,5*k]); g.strokeStyle = cor; g.globalAlpha = rot==='ENTRADA'?.55:.9; g.lineWidth = 1.4*k;
+      g.beginPath(); g.moveTo(L,y); g.lineTo(R,y); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+      const tw = g.measureText(rot).width + 10*k; g.fillStyle = 'rgba(5,7,10,.85)'; g.fillRect(L+4*k, y-9*k, tw, 18*k);
+      g.fillStyle = cor; g.fillText(rot, L+9*k, y+4*k); });
+  }
+  (S.marcas||[]).forEach(m => {
+    let idx = -1; for (let i=0;i<c.length;i++){ if (c[i][0] <= m.t) idx = i; else break; }
+    if (idx < 0 || m.t > c[c.length-1][0] + 120000 || m.preco == null) return;
+    const x = X(idx), y = Y(m.preco);
+    if (m.evento==='COMPRA'){ g.fillStyle = COR.up; g.beginPath(); g.moveTo(x,y-9*k); g.lineTo(x-7*k,y+5*k); g.lineTo(x+7*k,y+5*k); g.closePath(); g.fill(); }
+    else { g.fillStyle = (m.pnl??0)>0 ? COR.gold2 : COR.down; g.beginPath(); g.arc(x,y,6*k,0,6.283); g.fill(); g.strokeStyle='#05070a'; g.lineWidth=2*k; g.stroke(); }
+  });
+  const lx = X(f.length-1), ly = Y(f[f.length-1]), pulso = reduz ? 0 : (Math.sin(ts/380)+1)/2, subiu = f[f.length-1] >= f[f.length-2], cor = subiu ? COR.up : COR.down;
+  g.fillStyle = cor; g.globalAlpha = .3*(1-pulso); g.beginPath(); g.arc(lx,ly,(7+9*pulso)*k,0,6.283); g.fill(); g.globalAlpha = 1;
+  g.beginPath(); g.arc(lx,ly,4.5*k,0,6.283); g.fillStyle = cor; g.fill();
+  // etiqueta do último preço
+  g.fillStyle = cor; g.fillRect(R+2*k, ly-9*k, W-R-2*k, 18*k); g.fillStyle = '#04110c'; g.font = `700 ${11*k}px JetBrains Mono, Consolas, monospace`; g.fillText(nf(f[f.length-1],0), R+6*k, ly+4*k);
+  if (S.hover != null){
+    const i = clamp(Math.round((S.hover*k - L)/(R-L)*(f.length-1)), 0, f.length-1), x = X(i);
+    g.strokeStyle = 'rgba(244,221,154,.4)'; g.lineWidth = k; g.beginPath(); g.moveTo(x,T); g.lineTo(x,B); g.stroke();
+    const d = $('#dica'); d.style.opacity = 1; d.style.left = clamp(x/k+10, 0, cv.getBoundingClientRect().width-150)+'px'; d.style.top = '6px';
+    d.textContent = `${hora(c[i][0])} · US$ ${nf(f[i])}`;
+  } else $('#dica').style.opacity = 0;
+}
+cv.addEventListener('mousemove', e => { S.hover = e.clientX - cv.getBoundingClientRect().left; });
+cv.addEventListener('mouseleave', () => { S.hover = null; });
+
+/* candles agregados */
+function desenhaCandles(){
+  const k = devicePixelRatio||1, W = cvk.width, H = cvk.height; gk.clearRect(0,0,W,H);
+  const f = (S.candles||[]).map(x=>x[1]); if (f.length < 10) return;
+  const grp = 5, cs = [];
+  for (let i=f.length % grp; i+grp<=f.length; i+=grp){ const s = f.slice(i,i+grp); cs.push([s[0], Math.max(...s), Math.min(...s), s[s.length-1]]); }
+  const use = cs.slice(-24); if (!use.length) return;
+  let hi = Math.max(...use.map(c=>c[1])), lo = Math.min(...use.map(c=>c[2])); const pad = (hi-lo)*.12 || 1; hi += pad; lo -= pad;
+  const L = 6*k, R = W-62*k, T = 8*k, B = H-8*k, Y = v => B-(B-T)*(v-lo)/(hi-lo), cw = (R-L)/24;
+  gk.font = `${10*k}px JetBrains Mono, Consolas, monospace`;
+  for (let i=0;i<=3;i++){ const v = lo+(hi-lo)*i/3, y = Y(v); gk.strokeStyle = 'rgba(212,175,55,.08)'; gk.lineWidth = k; gk.beginPath(); gk.moveTo(L,y); gk.lineTo(R,y); gk.stroke();
+    gk.fillStyle = COR.mut; gk.fillText(nf(v,0), R+6*k, y+4*k); }
+  use.forEach((c,i) => {
+    const x = L + (i + .5 + (24-use.length))*cw, cor = c[3]>=c[0] ? COR.up : COR.down;
+    gk.strokeStyle = cor; gk.lineWidth = k; gk.beginPath(); gk.moveTo(x,Y(c[1])); gk.lineTo(x,Y(c[2])); gk.stroke();
+    const y1 = Y(Math.max(c[0],c[3])), y2 = Math.max(Y(Math.min(c[0],c[3])), y1+2*k);
+    gk.fillStyle = c[3]>=c[0] ? cor : mix('#0b0f14',cor,.55); gk.fillRect(x-cw*.32, y1, cw*.64, y2-y1); gk.strokeRect(x-cw*.32, y1, cw*.64, y2-y1);
+  });
+}
+
+/* freio do dia (medidor em arco) */
+function desenhaGauge(){
+  const k = devicePixelRatio||1, W = cvg.width, H = cvg.height; gg.clearRect(0,0,W,H);
+  S.gauge += (S.gaugeAlvo - S.gauge) * .08;
+  const cx0 = W/2, cy0 = H*.6, r = Math.min(W*.36, H*.5), a0 = Math.PI*(160/180), sw = Math.PI*(220/180);
+  const f = S.gauge, cor = f > .5 ? COR.up : f > .25 ? COR.amber : COR.down;
+  gg.lineCap = 'butt'; gg.lineWidth = 10*k; gg.strokeStyle = '#12181f'; gg.beginPath(); gg.arc(cx0,cy0,r,a0,a0+sw); gg.stroke();
+  gg.lineWidth = 2*k;
+  [[0,.25,COR.down],[.25,.5,COR.amber],[.5,1,COR.up]].forEach(([a,b,c]) => { gg.strokeStyle = c; gg.globalAlpha = .45; gg.beginPath(); gg.arc(cx0,cy0,r+9*k,a0+sw*a,a0+sw*b); gg.stroke(); }); gg.globalAlpha = 1;
+  if (f > .012){ gg.lineWidth = 10*k; gg.strokeStyle = cor; gg.shadowColor = cor; gg.shadowBlur = 12*k; gg.beginPath(); gg.arc(cx0,cy0,r,a0,a0+sw*f); gg.stroke(); gg.shadowBlur = 0; }
+  gg.lineWidth = k; gg.strokeStyle = '#54451a';
+  for (let i=0;i<=11;i++){ const a = a0+sw*i/11; gg.beginPath(); gg.moveTo(cx0+(r-14*k)*Math.cos(a), cy0+(r-14*k)*Math.sin(a)); gg.lineTo(cx0+(r-19*k)*Math.cos(a), cy0+(r-19*k)*Math.sin(a)); gg.stroke(); }
+  const ang = a0+sw*f; gg.strokeStyle = cor; gg.lineWidth = 3*k; gg.beginPath(); gg.moveTo(cx0,cy0); gg.lineTo(cx0+(r-24*k)*Math.cos(ang), cy0+(r-24*k)*Math.sin(ang)); gg.stroke();
+  gg.fillStyle = '#05070a'; gg.beginPath(); gg.arc(cx0,cy0,6*k,0,6.283); gg.fill(); gg.strokeStyle = cor; gg.lineWidth = 2*k; gg.stroke();
+}
+
+/* curva de resultado */
+function desenhaCurva(){
+  const k = devicePixelRatio||1, W = cvc.width, H = cvc.height; gc.clearRect(0,0,W,H);
+  const v = [0, ...(S.curva||[])]; if (v.length < 3) return;
+  let lo = Math.min(...v,0), hi = Math.max(...v,0); const pad = (hi-lo)*.15 || .1; lo -= pad; hi += pad;
+  const L = 8*k, R = W-70*k, T = 8*k, B = H-8*k, X = i => L+(R-L)*i/(v.length-1), Y = x => B-(B-T)*(x-lo)/(hi-lo);
+  const fim = v[v.length-1], cor = fim >= 0 ? COR.gold2 : COR.down;
+  gc.setLineDash([5*k,5*k]); gc.strokeStyle = 'rgba(244,221,154,.3)'; gc.lineWidth = k; gc.beginPath(); gc.moveTo(L,Y(0)); gc.lineTo(R,Y(0)); gc.stroke(); gc.setLineDash([]);
+  const gr = gc.createLinearGradient(0,T,0,B); gr.addColorStop(0, cor); gr.addColorStop(1, 'rgba(0,0,0,0)'); gc.globalAlpha = .22;
+  gc.beginPath(); v.forEach((x,i)=> i?gc.lineTo(X(i),Y(x)):gc.moveTo(X(i),Y(x))); gc.lineTo(R,Y(0)); gc.lineTo(L,Y(0)); gc.closePath(); gc.fillStyle = gr; gc.fill(); gc.globalAlpha = 1;
+  gc.save(); gc.shadowColor = cor; gc.shadowBlur = 8*k; linha(gc, v.map((x,i)=>[X(i),Y(x)]), cor, 2.4, k); gc.restore();
+  gc.fillStyle = cor; gc.font = `700 ${12*k}px JetBrains Mono, Consolas, monospace`; gc.textAlign = 'left'; gc.fillText(sg(fim,2), R+8*k, Y(fim)+4*k);
+  gc.beginPath(); gc.arc(X(v.length-1),Y(fim),4.5*k,0,6.283); gc.fill();
+}
+
+/* fluxo de decisão (rede animada alimentada pelo estado real do robô) */
+const NN = {layers:[6,8,6,3], pulses:[], act:null, t:0};
+NN.act = NN.layers.map(n => new Array(n).fill(0));
+const NN_IN = ['PREÇO','MÉDIA 9','MÉDIA 21','DIFERENÇA','VOLATILIDADE','MARGEM DO DIA'], NN_OUT = ['COMPRAR','AGUARDAR','SAIR / PARAR'], NN_OUT_CURTO = ['COMPRAR','AGUARDAR','SAIR'];
+function alvosNN(){
+  const e = S.estado, t = NN.t, tg = NN.layers.map(n => new Array(n).fill(0));
+  const base = .08 + .05*Math.sin(t*1.3);
+  let inp = [.3,.3,.3,.5,.2,1], saida = [0,1,0];
+  if (e && S.candles && S.candles.length){
+    const f = S.candles.map(c=>c[1]), i = f.length-1, lo = Math.min(...f), hi = Math.max(...f), rg = (hi-lo)||1;
+    const a = sma(f,9,i), b = sma(f,21,i), gap = (a!=null&&b!=null) ? (a-b)/b : 0;
+    const rets = f.slice(1).map((v,j)=>Math.abs(v/f[j]-1)), vol = rets.length ? rets.reduce((x,y)=>x+y,0)/rets.length : 0;
+    inp = [(f[i]-lo)/rg, a==null?.3:(a-lo)/rg, b==null?.3:(b-lo)/rg, clamp(.5+gap/.006,0,1), clamp(vol/0.0015,0,1), clamp(((e.perda_max||1)+(e.pnl_dia||0))/(e.perda_max||1),0,1)];
+    const quer = e.sinal === 'COMPRA' ? 1 : clamp(.5+gap/.006,0,1)*.55;
+    if (e.parado || (e.pausa_ate && e.pausa_ate > Date.now())) saida = [0,.15,1];
+    else if (e.posicao){ const p = e.posicao, rr = (p.alvo-p.stop)||1, prox = 1-clamp((e.preco-p.stop)/rr,0,1); saida = [.1,.55,clamp(prox*1.2,0,1)]; }
+    else saida = [quer, 1-quer*.8, .05];
+  }
+  tg[0] = inp.map(v => clamp(base + v*.9,0,1));
+  const m0 = tg[0].reduce((x,y)=>x+y,0)/6;
+  tg[1] = tg[1].map((_,j)=> clamp(base + m0*(.55+.45*Math.sin(t*1.9+j*1.3)),0,1));
+  const m1 = tg[1].reduce((x,y)=>x+y,0)/8;
+  tg[2] = tg[2].map((_,j)=> clamp(base + m1*(.55+.45*Math.sin(t*2.3+j*1.9)),0,1));
+  tg[3] = saida.map((v,j)=> clamp(base*.5 + v + (j==0?S.flash.buy:0)*.6 + (j==1?S.flash.win:0)*.5 + (j==2?S.flash.loss:0)*.6, 0, 1));
+  return tg;
+}
+let ultimoT = 0;
+function desenhaNeural(ts){
+  const dt = clamp((ts-ultimoT)/1000, .001, .1); ultimoT = ts; NN.t += dt;
+  S.flash.buy = Math.max(0,S.flash.buy-dt*.8); S.flash.win = Math.max(0,S.flash.win-dt*.8); S.flash.loss = Math.max(0,S.flash.loss-dt*.8);
+  const k = devicePixelRatio||1, W = cvn.width, H = cvn.height; gn.clearRect(0,0,W,H);
+  const tg = alvosNN(), kk = clamp(dt*6,0,1);
+  NN.act.forEach((a,li) => a.forEach((_,i) => a[i] += (tg[li][i]-a[i])*kk));
+  const estreito = W/k < 520, xs = (estreito ? [.32,.48,.62,.74] : [.17,.40,.63,.83]).map(v => v*W), pos = NN.layers.map((n,li) => Array.from({length:n},(_,i)=>[xs[li], H*.5 + (i-(n-1)/2)*Math.min(H*.12*(li==3?3:1), (H*.74)/Math.max(1,n-1))]));
+  // arestas
+  const arestas = [];
+  for (let li=0; li<3; li++) for (let i=0;i<NN.layers[li];i++) for (let j=0;j<NN.layers[li+1];j++){
+    if (li==1 && ((i+j)%3==2)) continue; arestas.push([li,i,j]); }
+  arestas.forEach(([li,i,j]) => { const [x1,y1]=pos[li][i], [x2,y2]=pos[li+1][j], a = NN.act[li][i];
+    gn.strokeStyle = mix('#12171d', li==2?COR.gold2:COR.golddim ?? COR.dim, .12 + a*.7); gn.lineWidth = k*.8; gn.beginPath(); gn.moveTo(x1,y1); gn.lineTo(x2,y2); gn.stroke(); });
+  if (NN.pulses.length < 80) arestas.forEach((ed,ei) => { if (Math.random() < NN.act[ed[0]][ed[1]]*.012) NN.pulses.push([ei, 0, .35+Math.random()*.5]); });
+  const pc = [COR.cyan, COR.gold2, COR.up];
+  NN.pulses = NN.pulses.filter(p => { p[1] += p[2]*dt; if (p[1] >= 1) return false;
+    const [li,i,j] = arestas[p[0]], [x1,y1]=pos[li][i], [x2,y2]=pos[li+1][j], x = x1+(x2-x1)*p[1], y = y1+(y2-y1)*p[1], t2 = Math.max(0,p[1]-.09);
+    gn.strokeStyle = pc[li]; gn.globalAlpha = .55; gn.lineWidth = 2*k; gn.beginPath(); gn.moveTo(x1+(x2-x1)*t2, y1+(y2-y1)*t2); gn.lineTo(x,y); gn.stroke(); gn.globalAlpha = 1;
+    gn.fillStyle = pc[li]; gn.beginPath(); gn.arc(x,y,2.2*k,0,6.283); gn.fill(); return true; });
+  const nc = [COR.cyan, COR.gold2, COR.gold, COR.up];
+  pos.forEach((camada,li) => camada.forEach(([x,y],i) => {
+    const a = NN.act[li][i]; let col = nc[li]; if (li==3) col = [COR.up,COR.gold2,COR.down][i];
+    const r = (li==3 ? 9 : 4.5)*k, gl = r + (3+a*7)*k;
+    gn.fillStyle = col; gn.globalAlpha = .06+a*.2; gn.beginPath(); gn.arc(x,y,gl,0,6.283); gn.fill(); gn.globalAlpha = 1;
+    gn.fillStyle = mix('#0d1218', col, .25+a*.75); gn.strokeStyle = mix('#54451a', col, a); gn.lineWidth = 1.4*k; gn.beginPath(); gn.arc(x,y,r,0,6.283); gn.fill(); gn.stroke();
+    if (li==0){ gn.fillStyle = COR.mut; gn.font = `700 ${(estreito?9:10)*k}px Manrope, system-ui`; gn.textAlign = 'right'; gn.fillText(NN_IN[i], x-14*k, y+3.5*k); }
+    if (li==3){ gn.fillStyle = col; gn.font = `800 ${(estreito?10:11)*k}px Manrope, system-ui`; gn.textAlign = 'left'; gn.fillText((estreito?NN_OUT_CURTO:NN_OUT)[i], x+16*k, y+4*k);
+      if ((i==0&&S.flash.buy>.03)||(i==1&&S.flash.win>.03)||(i==2&&S.flash.loss>.03)){ const f = i==0?S.flash.buy:i==1?S.flash.win:S.flash.loss, rr = (12+(1-f)*60)*k;
+        gn.strokeStyle = col; gn.globalAlpha = f; gn.lineWidth = 2*k; gn.beginPath(); gn.arc(x,y,rr,0,6.283); gn.stroke(); gn.globalAlpha = 1; } }
+  }));
+}
+
+/* faixa de cotações rolando */
+function rolaTape(dt){
+  const box = $('#tape'); if (!box.firstChild) return;
+  S.tapeOff = (S.tapeOff + 55*dt) % S.tapeW; box.style.transform = `translateX(${-S.tapeOff}px)`;
+}
+
+let ultimoF = 0, frame = 0;
+function loop(ts){
+  const dt = clamp((ts-ultimoF)/1000, 0, .1); ultimoF = ts; frame++;
+  rolaTape(dt);
+  desenhaPreco(ts); desenhaNeural(ts); desenhaGauge();
+  if (frame % 6 == 0){ desenhaCandles(); desenhaCurva(); }
+  requestAnimationFrame(loop);
+}
+/* ---------- abas e DCA ---------- */
+const MODO_SUB = {SIMULADO:'nenhuma ordem é enviada', TESTNET:'dinheiro de mentira', REAL:'DINHEIRO REAL'};
+function aplicaModo(){
+  const m = (S.aba==='dca' && S.dca && S.dca.modo) ? S.dca.modo : S.modoTrade;
+  document.documentElement.dataset.modo = m || '';
+}
+function mostraAba(a){
+  if (!ABAS.includes(a)) a = 'trade';
+  S.aba = a; try{ localStorage.setItem('aba', a); }catch(e){}
+  document.querySelectorAll('.aba').forEach(b => b.classList.toggle('on', b.dataset.aba === a));
+  $('#tradeWrap').hidden = a !== 'trade'; $('#dcaWrap').hidden = a !== 'dca';
+  document.querySelector('.tape').style.display = a === 'dca' ? 'none' : '';   // faixa e botão são do robô de trade
+  if (a === 'dca') $('#btnParar').style.display = 'none';
+  if (a === 'dca'){ if (S.dca) renderDca(S.dca); tickDca(); }
+  else { aplicaModo(); if (S.d) render(S.d); }
+}
+document.querySelectorAll('.aba').forEach(b => b.addEventListener('click', () => mostraAba(b.dataset.aba)));
+
+async function tickDca(){
+  clearTimeout(S.dcaT);
+  if (S.aba !== 'dca') return;
+  try{
+    const r = await fetch('/api/dca',{cache:'no-store'}); if(!r.ok) throw new Error(r.status);
+    S.dca = await r.json(); $('#dcaRede').classList.remove('on'); renderDca(S.dca);
+  }catch(e){ $('#dcaRede').classList.add('on'); }
+  S.dcaT = setTimeout(tickDca, 8000);
+}
+const dMoeda = (d, v, dec=2) => v==null ? '—' : (d.moeda==='BRL' ? 'R$ '+nf(v,dec) : nf(v,dec)+' '+d.moeda);
+function renderDca(d){
+  if (d.erro){ const b=$('#dcaAlerta'); b.textContent = d.erro; b.classList.add('on'); return; }
+  aplicaModo();
+  $('#pill').innerHTML = `DCA · ${esc(d.modo)} <small>· ${MODO_SUB[d.modo]||''}</small>`;
+  $('#dcaDemo').classList.toggle('on', !!d.demo);
+  const al = $('#dcaAlerta'); al.textContent = d.alerta || ''; al.classList.toggle('on', !!d.alerta);
+  const pr = $('#dcaProblemas'); pr.textContent = (d.problemas && d.problemas.length) ? 'Configuração do DCA com problema: ' + d.problemas.join('; ') + '.' : ''; pr.classList.toggle('on', !!(d.problemas && d.problemas.length));
+
+  const t = d.total, res = t.resultado_pct;
+  rola($('#dInv'), t.custo, v => dMoeda(d, v));
+  $('#dInvN').textContent = d.compras.filter(c=>c.status==='ok').length + ' compra(s) concluída(s).';
+  const dv = $('#dVal'); if (t.valor==null) dv.textContent = '—'; else rola(dv, t.valor, v => dMoeda(d, v));
+  const dr = $('#dRes'); dr.className = 'valor num ' + (res==null ? '' : res>=0 ? 'pos' : 'neg');
+  if (res==null) dr.textContent = '—'; else rola(dr, res, v => sg(v,2)+'%');
+  $('#dResN').textContent = res==null ? 'Aparece quando houver compra e preço de referência.' : `${sg(t.valor - t.custo,2)} ${d.moeda==='BRL'?'R$':d.moeda} desde o início.`;
+
+  $('#dCarteira').innerHTML = d.ativos.map(a => {
+    const cls = a.resultado_pct==null ? '' : a.resultado_pct>=0 ? 'pos' : 'neg', base = esc(a.simbolo.split('/')[0]);
+    return `<div class="ativo"><div class="a-topo"><b>${esc(a.simbolo)}</b><span class="${cls}">${a.resultado_pct==null?'—':sg(a.resultado_pct,2)+'%'}</span></div>
+      <div class="a-barra"><i style="width:${(a.peso_real*100).toFixed(1)}%"></i><u style="left:${(a.meta*100).toFixed(1)}%"></u></div>
+      <div class="a-det"><span>meta <b>${nf(a.meta*100,0)}%</b></span><span>real <b>${nf(a.peso_real*100,0)}%</b></span>
+      <span>quantidade <b>${nf(a.qtd,8)} ${base}</b></span><span>preço médio <b>${a.medio==null?'—':nf(a.medio)}</b></span>
+      <span>agora <b>${a.preco==null?'—':nf(a.preco)}</b></span><span>valor <b>${dMoeda(d, a.valor)}</b></span></div></div>`;
+  }).join('');
+
+  const px = d.proxima, dias = px.dias, data = new Date(px.data + 'T12:00:00').toLocaleDateString('pt-BR');
+  if (px.situacao === 'pode_agora'){ $('#pxTitulo').textContent = 'JÁ PODE COMPRAR'; $('#pxData').textContent = 'Rode python dca.py no terminal.'; }
+  else { $('#pxTitulo').textContent = (px.situacao==='feita' ? 'PRÓXIMA EM ' : 'EM ') + dias + (dias===1 ? ' DIA' : ' DIAS'); $('#pxData').textContent = data; }
+  const per = d.periodo, st = per.status==='ok' ? `✓ feita (${per.ativo})` : per.status==='pendente' ? '⚠ PENDENTE' : 'ainda não feita';
+  const fr = {mensal:'mensal', semanal:'semanal', diaria:'diária'}[d.config.frequencia] || d.config.frequencia;
+  const regraDia = d.config.frequencia==='mensal' ? ` · a partir do dia ${d.config.dia}` : d.config.frequencia==='semanal' ? ` · a partir de ${['seg','ter','qua','qui','sex','sáb','dom'][d.config.dia]||'?'}` : '';
+  $('#pxKv').innerHTML = `<span>Compra deste período</span><b>${esc(st)}</b><span>Ativo da vez</span><b>${esc(px.ativo_sugerido||'—')}</b><span>Valor por compra</span><b>${dMoeda(d, d.config.valor)}</b><span>Frequência</span><b>${fr}${regraDia}</b>`;
+  $('#tetoTxt').textContent = `${dMoeda(d, d.mes.gasto)} / ${dMoeda(d, d.mes.teto)}`;
+  $('#tetoBarra').style.width = Math.min(100, d.mes.teto ? 100*d.mes.gasto/d.mes.teto : 0) + '%';
+
+  const lista = d.compras.slice().reverse();
+  $('#dVazio').hidden = lista.length > 0;
+  $('#dFeed').innerHTML = lista.map(c => {
+    const ok = c.status==='ok', cor = ok ? '--gold' : '--down', ic = ok ? '▲' : '⚠';
+    return `<li style="animation:none"><span class="ic" style="--c:var(${cor})">${ic}</span><div>${ok ? `Comprou <b>${nf(c.qtd,8)}</b> ${esc(c.ativo.split('/')[0])} por <b>${dMoeda(d, c.custo)}</b> · preço <b>${nf(c.preco)}</b>` : `<b class="neg">PENDENTE</b> · ${esc(c.ativo)}: confira na Binance se a ordem foi enviada`}<time>${esc(c.periodo)} · ${new Date(c.t).toLocaleDateString('pt-BR')} ${new Date(c.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</time></div></li>`;
+  }).join('');
+}
+
+setInterval(() => { $('#relogio').textContent = new Date().toLocaleTimeString('pt-BR'); batimento(); }, 1000);
+tick(); requestAnimationFrame(loop);
+{ let a = 'trade'; try{ a = localStorage.getItem('aba') || 'trade'; }catch(e){} if (a !== 'trade') mostraAba(a); }
+</script>
+</body>
+</html>
