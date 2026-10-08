@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ATIVOS_PADRAO } from "@/dados/fontes";
 import { ehDono } from "@/lib/config";
-import { clienteAdmin, clienteServidor } from "@/lib/supabase/servidor";
+import { clienteServidor } from "@/lib/supabase/servidor";
 import { PADROES_ANALISE } from "@/lib/config";
 import { criarDependencias } from "@/servico/real";
 import { rodarAnalise } from "@/servico/analise-cron";
@@ -78,15 +78,17 @@ export async function removerAtivo(formData: FormData) {
   revalidatePath("/ativos");
 }
 
-/** Roda a análise na hora (a mesma que o cron roda de manhã e à tarde). */
+/** Roda a análise na hora (a mesma que o cron roda de manhã e à tarde).
+ *  Usa a sessão do próprio dono (respeita o RLS), então funciona sem depender da chave de serviço. */
 export async function rodarAgora() {
-  await exigirDono();
-  const deps = criarDependencias(clienteAdmin(), process.env.BRAPI_TOKEN);
+  const { supabase } = await exigirDono();
+  const deps = criarDependencias(supabase, process.env.BRAPI_TOKEN);
   let destino = "/";
   try {
     const r = await rodarAnalise(deps, { gatilho: "manual", ...PADROES_ANALISE });
     destino = r.status === "erro" ? "/?erro=analise" : "/";
-  } catch {
+  } catch (e) {
+    console.error("rodarAgora falhou:", e);
     destino = "/?erro=analise";
   }
   revalidatePath("/");

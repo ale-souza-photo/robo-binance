@@ -69,9 +69,16 @@ export async function rodarAnalise(d: Dependencias, cfg: ConfigAnalise): Promise
     return { status: "erro", id, ativosUsados: usados, ativosFalharam: falharam, avisos };
   }
 
-  const resultado = executarAnalise({
-    series, inicial: cfg.inicial, mensal: cfg.mensal, dia: cfg.dia, carteiras: await d.carteiras(), nomes,
-  });
+  let resultado;
+  try {
+    resultado = executarAnalise({
+      series, inicial: cfg.inicial, mensal: cfg.mensal, dia: cfg.dia, carteiras: await d.carteiras(), nomes,
+    });
+  } catch (e) {
+    avisos.push(`Não consegui calcular a análise: ${e instanceof Error ? e.message : String(e)}`);
+    const id = await d.salvarAnalise({ ...base, status: "erro", periodoIni: null, periodoFim: null, avisos, resultado: null });
+    return { status: "erro", id, ativosUsados: usados, ativosFalharam: falharam, avisos };
+  }
   for (const c of resultado.carteirasIgnoradas) avisos.push(`Carteira '${c.nome}' ignorada: faltam ${c.faltam.join(", ")}.`);
   const status = falharam.length ? "parcial" : "ok";
   const id = await d.salvarAnalise({
