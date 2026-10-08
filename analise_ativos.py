@@ -302,7 +302,8 @@ def leitura_rapida(stats, nomes_corr, corr, carteiras):
         c = [k for k in risco if risco[k]["calmar"] is not None]
         if c:
             b = max(c, key=lambda k: risco[k]["calmar"])
-            frases.append(f"Melhor retorno por ponto de queda: {nome(b)} ({risco[b]['calmar']:.2f}). Quanto maior, mais retorno "
+            calmar_txt = f"{risco[b]['calmar']:.2f}".replace(".", ",")
+            frases.append(f"Melhor retorno por ponto de queda: {nome(b)} ({calmar_txt}). Quanto maior, mais retorno "
                           "você teve para cada ponto de risco que aguentou.")
         for k, s in risco.items():
             if s["pos_12m"] is not None and s["pos_12m"] < 0.75:

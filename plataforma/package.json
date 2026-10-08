@@ -1,0 +1,28 @@
+{
+  "name": "trader-bit-plataforma",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma de testes de investimento (saldo fictício, análises automáticas, mercado ao vivo)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.3",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.3"
+  },
+  "engines": { "node": ">=22" }
+}
