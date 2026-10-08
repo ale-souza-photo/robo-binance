@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { sair } from "@/app/acoes";
+import { Faixa } from "@/components/Faixa";
 
 const ITENS = [
   { href: "/", rotulo: "PAINEL", chave: "painel" },
@@ -12,8 +13,9 @@ const ITENS = [
 
 export function Cabecalho({ ativa }: { ativa: (typeof ITENS)[number]["chave"] }) {
   return (
+    <>
     <header className="topo">
-      <span className="logo">TRADER BIT</span>
+      <span className="logo"><span className="sig">T</span>TRADER BIT</span>
       <nav className="menu">
         {ITENS.map((i) => (
           <Link key={i.chave} href={i.href} className={i.chave === ativa ? "on" : ""}>
@@ -21,10 +23,13 @@ export function Cabecalho({ ativa }: { ativa: (typeof ITENS)[number]["chave"] })
           </Link>
         ))}
       </nav>
+      <span className="aovivo">AO VIVO</span>
       <span className="chip">SIMULAÇÃO · DINHEIRO FICTÍCIO</span>
       <form action={sair}>
         <button className="sair" type="submit">SAIR</button>
       </form>
     </header>
+    <Faixa />
+    </>
   );
 }
