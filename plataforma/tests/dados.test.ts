@@ -112,9 +112,18 @@ describe("carregarSerie (com reserva)", () => {
   const t0 = 1_700_000_000;
   const yahoo = { chart: { result: [{ timestamp: Array.from({ length: 80 }, (_, i) => t0 + i * 86400), indicators: { quote: [{ close: Array.from({ length: 80 }, (_, i) => 100 + i) }] } }] } };
 
+  it("histórico longo: vai direto ao Yahoo, sem chamar a brapi (plano grátis só dá 3 meses)", async () => {
+    const chamadas: string[] = [];
+    const f = (async (u: string) => { chamadas.push(u); return resp(yahoo); }) as unknown as typeof fetch;
+    const r = await carregarSerie(def, { anos: 5, fetch: f, brapiToken: "tok" });
+    expect(r.fonteUsada).toBe("yahoo");
+    expect(r.avisos).toEqual([]);
+    expect(chamadas.every((u) => !u.includes("brapi.dev"))).toBe(true);
+  });
+
   it("se a brapi falha, usa o Yahoo e conta o que aconteceu", async () => {
     const f = (async (u: string) => (u.includes("brapi.dev") ? resp({}, 401) : resp(yahoo))) as unknown as typeof fetch;
-    const r = await carregarSerie(def, { anos: 1, fetch: f });
+    const r = await carregarSerie(def, { anos: 0.2, fetch: f });
     expect(r.fonteUsada).toBe("yahoo");
     expect(r.serie.length).toBe(80);
     expect(r.avisos[0]).toMatch(/brapi/);
@@ -122,8 +131,8 @@ describe("carregarSerie (com reserva)", () => {
 
   it("se tudo falha, junta as explicações num erro só", async () => {
     const f = (async () => resp({}, 500)) as unknown as typeof fetch;
-    await expect(carregarSerie(def, { anos: 1, fetch: f })).rejects.toThrow(ErroFonte);
-    await expect(carregarSerie(def, { anos: 1, fetch: f })).rejects.toThrow(/brapi.*yahoo/s);
+    await expect(carregarSerie(def, { anos: 0.2, fetch: f })).rejects.toThrow(ErroFonte);
+    await expect(carregarSerie(def, { anos: 0.2, fetch: f })).rejects.toThrow(/brapi.*yahoo/s);
   });
 
   it("recusa série curta demais", async () => {

@@ -13,3 +13,11 @@ export const horaBr = (iso: string): string =>
   new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
 
 export const queda = (q: number): string => (q < 0.005 ? "0%" : `−${nf(100 * q, 0)}%`);
+
+/** Lê número digitado em português: '1.000,50' -> 1000.5 ; '100,5' -> 100.5 ; '100.5' -> 100.5. Inválido -> NaN. */
+export function lerNumero(texto: unknown): number {
+  const t = String(texto ?? "").trim().replace(/\s/g, "").replace(/^R\$/i, "");
+  if (!t) return Number.NaN;
+  const normal = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
+  return /^-?\d+(\.\d+)?$/.test(normal) ? Number(normal) : Number.NaN;
+}

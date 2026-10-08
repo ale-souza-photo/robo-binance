@@ -2,11 +2,13 @@
 
 Plataforma web de testes de investimento (dinheiro fictício). Veja `PLANO.md` para as decisões e as fases.
 
-## O que já funciona (fase 1–3)
+## O que já funciona (fases 1–4)
 - Login só para o dono (link por e-mail).
 - Cadastro de ativos (cripto, BDR, ação, ETF) e conjunto padrão.
 - Análise automática às 08:00 e 18:00 (Brasília) + botão "Rodar análise agora".
 - Histórico de análises; leitura rápida, estatísticas e carteiras com aportes.
+- **Carteira de teste (dinheiro fictício):** contas, compra e venda simuladas com taxa e slippage, posições com custo médio,
+  resultado, DCA do mês (um por ativo e mês) e travas (saldo, venda a descoberto, trava de perda).
 
 ## Rodar no seu PC
 ```

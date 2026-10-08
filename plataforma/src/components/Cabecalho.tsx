@@ -5,6 +5,7 @@ const ITENS = [
   { href: "/", rotulo: "PAINEL", chave: "painel" },
   { href: "/ativos", rotulo: "ATIVOS", chave: "ativos" },
   { href: "/analises", rotulo: "ANÁLISES", chave: "analises" },
+  { href: "/carteira", rotulo: "CARTEIRA", chave: "carteira" },
 ] as const;
 
 export function Cabecalho({ ativa }: { ativa: (typeof ITENS)[number]["chave"] }) {
