@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  ErroOrdem, type Lado, type Movimento, aplicar, avaliar, cotarOrdem, dividirAporte, negociavel, periodoDca, validarOrdem,
+  ErroOrdem, type Lado, type Movimento, aplicar, avaliar, cotarOrdem, dividirAporte, negociavel, periodoDca, planejarSincronia, validarOrdem,
 } from "@/core/paper";
 import { exigirDono } from "@/lib/dono";
 import { lerNumero } from "@/lib/format";
-import { ativosNegociaveis, carregarMovimentos, listarContas, ultimosPrecos } from "@/servico/carteira-db";
+import { ativosNegociaveis, carregarMovimentos, lerReservaRockefeller, listarContas, ultimosPrecos } from "@/servico/carteira-db";
 
 /** Preço mais velho que isto não serve para simular ordem (rode a análise para atualizar). */
 const PRECO_MAX_IDADE_DIAS = 7;
@@ -25,10 +25,20 @@ function idadeDias(data: string, agora: Date): number {
 export async function criarConta(formData: FormData) {
   const { supabase } = await exigirDono();
   const nome = String(formData.get("nome") ?? "").trim().slice(0, 60);
-  const saldo = lerNumero(formData.get("saldo"));
-  if (!nome || !(saldo > 0) || saldo > 1e9) redirect(volta(null, { erro: "Informe um nome e um saldo maior que zero." }));
-  const { data: conta, error } = await supabase.from("contas_teste").insert({ nome, saldo_inicial: saldo }).select("id").single();
-  if (error || !conta) redirect(volta(null, { erro: "Não consegui criar a conta." }));
+  const espelho = formData.get("espelho") === "1";
+  const saldo = espelho ? 0 : lerNumero(formData.get("saldo"));
+  if (!nome) redirect(volta(null, { erro: "Informe um nome para a conta." }));
+  if (!espelho && (!(saldo > 0) || saldo > 1e9)) redirect(volta(null, { erro: "Informe um saldo maior que zero." }));
+  const { data: conta, error } = await supabase
+    .from("contas_teste").insert({ nome, saldo_inicial: saldo, espelha_reserva: espelho }).select("id").single();
+  if (error || !conta) {
+    redirect(volta(null, { erro: error?.code === "23505" ? "Você já tem uma conta espelhada na reserva." : "Não consegui criar a conta." }));
+  }
+  if (espelho) {
+    // o saldo vem do Rockefeller: sincroniza já (se a reserva ainda for R$ 0, a conta nasce vazia)
+    revalidatePath("/carteira");
+    redirect(volta(conta.id as string, { ok: "Conta espelhada criada. Clique em Sincronizar para trazer o saldo da reserva." }));
+  }
   const { error: e2 } = await supabase.from("movimentos_teste").insert({
     conta_id: conta.id, tipo: "deposito", taxa: 0, caixa_delta: saldo, nota: "Saldo inicial (fictício)",
   });
@@ -38,6 +48,56 @@ export async function criarConta(formData: FormData) {
   }
   revalidatePath("/carteira");
   redirect(volta(conta.id as string, { ok: "Conta criada." }));
+}
+
+/** Iguala o saldo fictício à reserva de emergência do Rockefeller (só lê de lá). */
+export async function sincronizarReserva(formData: FormData) {
+  const { supabase } = await exigirDono();
+  const contaId = String(formData.get("conta") ?? "");
+  if (!UUID.test(contaId)) redirect(volta(null, { erro: "Conta inválida." }));
+  let msg: string | null = null;
+  let ok = "";
+  try {
+    const contas = await listarContas(supabase);
+    const conta = contas.find((c) => c.id === contaId);
+    if (!conta) throw new ErroOrdem("Conta não encontrada.");
+    if (!conta.espelhaReserva) throw new ErroOrdem("Esta conta não é espelhada na reserva.");
+    const reserva = await lerReservaRockefeller(supabase);
+    if (!reserva) throw new ErroOrdem("Não encontrei os dados do Rockefeller para este usuário.");
+    const est = aplicar(await carregarMovimentos(supabase, contaId));
+    const plano = planejarSincronia(reserva.valor, est);
+    if (plano.aviso) throw new ErroOrdem(plano.aviso);
+    if (!plano.tipo) {
+      ok = "Já está igual à reserva do Rockefeller. Nada a lançar.";
+    } else {
+      const { error } = await supabase.from("movimentos_teste").insert({
+        conta_id: contaId, tipo: plano.tipo, taxa: 0,
+        caixa_delta: plano.tipo === "deposito" ? plano.valor : -plano.valor,
+        nota: `Reserva do Rockefeller: R$ ${reserva.valor.toFixed(2)}`,
+      });
+      if (error) throw new Error(error.message);
+      ok = plano.tipo === "deposito"
+        ? `Entraram R$ ${plano.valor.toFixed(2).replace(".", ",")} (reserva subiu).`
+        : `Saíram R$ ${plano.valor.toFixed(2).replace(".", ",")} (reserva caiu).`;
+    }
+  } catch (e) {
+    msg = e instanceof ErroOrdem ? e.message : "Não consegui sincronizar. Tente de novo.";
+    if (!(e instanceof ErroOrdem)) console.error("sincronizarReserva falhou:", e);
+  }
+  revalidatePath("/carteira");
+  redirect(volta(contaId, msg ? { erro: msg } : { ok }));
+}
+
+/** Apaga a conta e todos os movimentos dela (cascata). Exige a confirmação marcada no formulário. */
+export async function excluirConta(formData: FormData) {
+  const { supabase } = await exigirDono();
+  const contaId = String(formData.get("conta") ?? "");
+  if (!UUID.test(contaId)) redirect(volta(null, { erro: "Conta inválida." }));
+  if (formData.get("confirmo") !== "1") redirect(volta(contaId, { erro: "Marque a caixa de confirmação para excluir." }));
+  const { data, error } = await supabase.from("contas_teste").delete().eq("id", contaId).select("id");
+  revalidatePath("/carteira");
+  if (error || !data?.length) redirect(volta(contaId, { erro: "Não consegui excluir a conta." }));
+  redirect(volta(null, { ok: "Conta excluída." }));
 }
 
 export async function depositar(formData: FormData) {

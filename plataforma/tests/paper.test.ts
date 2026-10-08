@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ErroOrdem, aplicar, avaliar, cotarOrdem, custosDoTipo, dividirAporte, negociavel, periodoDca, validarOrdem,
+  ErroOrdem, aplicar, avaliar, cotarOrdem, custosDoTipo, dividirAporte, negociavel, periodoDca, planejarSincronia, validarOrdem,
   type Movimento,
 } from "@/core/paper";
 
@@ -172,5 +172,51 @@ describe("DCA simulado", () => {
     expect(periodoDca(new Date("2026-10-08T14:00:00Z"))).toBe("2026-10");
     expect(periodoDca(new Date("2026-11-01T01:00:00Z"))).toBe("2026-10"); // ainda 31/10 em Brasília
     expect(periodoDca(new Date("2026-11-01T03:00:00Z"))).toBe("2026-11");
+  });
+});
+
+describe("espelho da reserva de emergência", () => {
+  const ret = (v: number): Movimento => ({ tipo: "retirada", taxa: 0, caixaDelta: -v });
+
+  it("retirada reduz caixa e aportado (o resultado não muda)", () => {
+    const movs = [dep(1000), comprar("X", "etf", 100, 500), ret(200)];
+    const e = aplicar(movs);
+    expect(e.aportado).toBe(800);
+    const antes = avaliar(aplicar(movs.slice(0, 2)), { X: 100 });
+    const depois = avaliar(e, { X: 100 });
+    expect(depois.resultado).toBeCloseTo(antes.resultado, 6);
+  });
+
+  it("reserva subiu: deposita só a diferença", () => {
+    const e = aplicar([dep(300)]);
+    expect(planejarSincronia(450.5, e)).toEqual({ tipo: "deposito", valor: 150.5 });
+  });
+
+  it("já igual: não lança nada (sincronizar duas vezes não duplica)", () => {
+    const e = aplicar([dep(300), dep(150.5)]);
+    expect(planejarSincronia(450.5, e)).toEqual({ tipo: null, valor: 0 });
+  });
+
+  it("reserva caiu: retira do caixa livre", () => {
+    const e = aplicar([dep(500)]);
+    expect(planejarSincronia(350, e)).toEqual({ tipo: "retirada", valor: 150 });
+  });
+
+  it("reserva caiu mais que o caixa: recusa e avisa (não vende posição sozinho)", () => {
+    const e = aplicar([dep(500), comprar("X", "etf", 100, 450)]);
+    const plano = planejarSincronia(100, e);
+    expect(plano.tipo).toBeNull();
+    expect(plano.aviso).toMatch(/Venda posições/);
+  });
+
+  it("reserva zerada com conta vazia não faz nada; valor inválido é erro", () => {
+    expect(planejarSincronia(0, aplicar([]))).toEqual({ tipo: null, valor: 0 });
+    expect(() => planejarSincronia(Number.NaN, aplicar([]))).toThrow(ErroOrdem);
+    expect(() => planejarSincronia(-5, aplicar([]))).toThrow(ErroOrdem);
+  });
+
+  it("ruído de ponto flutuante não gera lançamento de R$ 0,00", () => {
+    const e = aplicar([dep(0.1), dep(0.2)]);
+    expect(planejarSincronia(0.3, e)).toEqual({ tipo: null, valor: 0 });
   });
 });

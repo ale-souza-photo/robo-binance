@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type Movimento, negociavel } from "@/core/paper";
 
-export type Conta = { id: string; nome: string; saldoInicial: number; travaPerda: number; criadoEm: string };
+export type Conta = { id: string; nome: string; saldoInicial: number; travaPerda: number; criadoEm: string; espelhaReserva: boolean };
 export type AtivoNeg = { id: string; nome: string; tipo: string };
 export type PrecoUltimo = { data: string; valor: number };
 export type MovimentoLinha = Movimento & { id: string; criadoEm: string; nota: string | null };
@@ -9,11 +9,11 @@ export type MovimentoLinha = Movimento & { id: string; criadoEm: string; nota: s
 type Db = SupabaseClient<any, any, any>;
 
 export async function listarContas(db: Db): Promise<Conta[]> {
-  const { data, error } = await db.from("contas_teste").select("id,nome,saldo_inicial,trava_perda,criado_em").order("criado_em");
+  const { data, error } = await db.from("contas_teste").select("id,nome,saldo_inicial,trava_perda,criado_em,espelha_reserva").order("criado_em");
   if (error) throw new Error(`banco: ${error.message}`);
   return (data ?? []).map((c) => ({
     id: c.id as string, nome: c.nome as string, saldoInicial: Number(c.saldo_inicial),
-    travaPerda: Number(c.trava_perda), criadoEm: c.criado_em as string,
+    travaPerda: Number(c.trava_perda), criadoEm: c.criado_em as string, espelhaReserva: Boolean(c.espelha_reserva),
   }));
 }
 
@@ -60,4 +60,22 @@ export async function ultimosPrecos(db: Db, ids: string[]): Promise<Record<strin
     }),
   );
   return saida;
+}
+
+export type ReservaRockefeller = { valor: number; atualizadoEm: string | null };
+
+/**
+ * Lê a reserva de emergência do Rockefeller (campo `reservaAtual`). SOMENTE LEITURA: este código nunca escreve
+ * na tabela do Rockefeller. O RLS de lá só deixa o próprio dono ler a sua linha (o mesmo usuário nos dois apps).
+ * Devolve null se a linha não existir; lança erro se o valor não for um número válido.
+ */
+export async function lerReservaRockefeller(db: Db): Promise<ReservaRockefeller | null> {
+  const { data, error } = await db.schema("public").from("rockefeller_data").select("data,updated_at").maybeSingle();
+  if (error) throw new Error(`rockefeller: ${error.message}`);
+  if (!data) return null;
+  const v = (data.data as { reservaAtual?: unknown } | null)?.reservaAtual;
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 1e9) {
+    throw new Error("A reserva do Rockefeller não é um número válido.");
+  }
+  return { valor: v, atualizadoEm: (data.updated_at as string | null) ?? null };
 }
