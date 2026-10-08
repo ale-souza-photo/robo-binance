@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ATIVOS_PADRAO } from "@/dados/fontes";
 import { ehDono } from "@/lib/config";
@@ -19,17 +18,12 @@ async function exigirDono() {
 
 export async function entrar(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  // Resposta igual para qualquer e-mail: ninguém descobre qual é o do dono.
-  if (!ehDono(email)) redirect("/login?enviado=1");
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+  const senha = String(formData.get("senha") ?? "");
+  // Mesma resposta para e-mail errado ou senha errada: ninguém descobre qual é o do dono.
+  if (!ehDono(email) || !senha) redirect("/login?erro=credenciais");
   const supabase = await clienteServidor();
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: false, emailRedirectTo: `${proto}://${host}/auth/callback` },
-  });
-  redirect(error ? "/login?erro=falha_envio" : "/login?enviado=1");
+  const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  redirect(error ? "/login?erro=credenciais" : "/");
 }
 
 export async function sair() {
