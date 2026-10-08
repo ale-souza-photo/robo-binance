@@ -1,12 +1,12 @@
-// Trader Bit · widget do Scriptable (mercado + saldo da conta de teste)
+// Trader Bit - widget do Scriptable (mercado + saldo da conta de teste)
 // Como usar: cole este script no app Scriptable, rode UMA vez no app (ele pede o token e guarda no chaveiro do iPhone),
-// depois adicione um widget do Scriptable à tela inicial e escolha este script.
-// Tudo aqui é dinheiro fictício. Não é recomendação de investimento.
+// depois adicione um widget do Scriptable a tela inicial e escolha este script.
+// Tudo aqui e dinheiro ficticio. Nao e recomendacao de investimento.
 
 const URL_BASE = "https://robo-binance-ten.vercel.app";
 const CHAVE_TOKEN = "traderbit_widget_token";
 const ARQUIVO_CACHE = "traderbit_widget_cache.json";
-const ATUALIZAR_EM_MIN = 10; // o iOS decide o ritmo real; isto é só um pedido
+const ATUALIZAR_EM_MIN = 10; // o iOS decide o ritmo real; isto \u00e9 s\u00f3 um pedido
 
 const COR = {
   fundo1: new Color("#0b0f14"),
@@ -20,13 +20,13 @@ const COR = {
   aviso: new Color("#e8b94a"),
 };
 
-// ---------- formatação em português ----------
+// ---------- formatacao em portugues ----------
 function brl(n, casas) {
-  if (n === null || n === undefined || !isFinite(n)) return "—";
+  if (n === null || n === undefined || !isFinite(n)) return "\u2014";
   const c = casas === undefined ? 2 : casas;
   const partes = Math.abs(n).toFixed(c).split(".");
   const inteiro = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return (n < 0 ? "−" : "") + "R$ " + inteiro + (c > 0 ? "," + partes[1] : "");
+  return (n < 0 ? "\u2212" : "") + "R$ " + inteiro + (c > 0 ? "," + partes[1] : "");
 }
 function casasDoPreco(p) {
   return p < 10 ? 4 : p < 1000 ? 2 : 0;
@@ -34,7 +34,7 @@ function casasDoPreco(p) {
 function pct(x, casas) {
   if (x === null || x === undefined || !isFinite(x)) return "";
   const v = 100 * x;
-  return (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(casas === undefined ? 1 : casas).replace(".", ",") + "%";
+  return (v >= 0 ? "+" : "\u2212") + Math.abs(v).toFixed(casas === undefined ? 1 : casas).replace(".", ",") + "%";
 }
 function hhmm(iso) {
   const d = new Date(iso);
@@ -42,14 +42,14 @@ function hhmm(iso) {
   return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
 }
 
-// ---------- token (fica só no chaveiro deste iPhone) ----------
+// ---------- token (fica so no chaveiro deste iPhone) ----------
 function lerToken() {
   return Keychain.contains(CHAVE_TOKEN) ? Keychain.get(CHAVE_TOKEN) : null;
 }
 async function pedirToken() {
   const a = new Alert();
   a.title = "Trader Bit";
-  a.message = "Cole o token do widget (o valor de WIDGET_TOKEN na Vercel). Ele fica guardado só neste iPhone.";
+  a.message = "Cole o token do widget (o valor de WIDGET_TOKEN na Vercel). Ele fica guardado s\u00f3 neste iPhone.";
   a.addSecureTextField("token");
   a.addAction("Guardar");
   a.addCancelAction("Cancelar");
@@ -61,7 +61,7 @@ async function pedirToken() {
   return t;
 }
 
-// ---------- cache (para mostrar o último dado quando está sem internet) ----------
+// ---------- cache (para mostrar o ultimo dado quando esta sem internet) ----------
 function caminhoCache() {
   const fm = FileManager.local();
   return { fm, caminho: fm.joinPath(fm.documentsDirectory(), ARQUIVO_CACHE) };
@@ -133,9 +133,9 @@ function avisoWidget(mensagem) {
   return w;
 }
 function pontoDaFonte(fonte) {
-  if (fonte === "ao vivo") return { simbolo: "●", cor: COR.alta };
-  if (fonte === "atraso") return { simbolo: "●", cor: COR.aviso };
-  return { simbolo: "○", cor: COR.suave };
+  if (fonte === "ao vivo") return { simbolo: "\u25cf", cor: COR.alta };
+  if (fonte === "atraso") return { simbolo: "\u25cf", cor: COR.aviso };
+  return { simbolo: "\u25cb", cor: COR.suave };
 }
 function linhaDoItem(pai, item, comVariacao) {
   const linha = pai.addStack();
@@ -149,7 +149,7 @@ function linhaDoItem(pai, item, comVariacao) {
   esq.addSpacer(4);
   texto(esq, item.id, Font.boldSystemFont(13), COR.ouro);
   linha.addSpacer();
-  texto(linha, item.preco === null || item.preco === undefined ? "—" : brl(item.preco, casasDoPreco(item.preco)), Font.boldMonospacedSystemFont(12), COR.texto);
+  texto(linha, item.preco === null || item.preco === undefined ? "\u2014" : brl(item.preco, casasDoPreco(item.preco)), Font.boldMonospacedSystemFont(12), COR.texto);
   if (comVariacao) {
     const dir = linha.addStack();
     dir.size = new Size(52, 0);
@@ -163,13 +163,13 @@ function linhaDoSaldo(pai, conta, compacto) {
   const bloco = pai.addStack();
   bloco.layoutVertically();
   if (!conta) {
-    texto(bloco, "Saldo indisponível", Font.systemFont(10), COR.suave);
+    texto(bloco, "Saldo indispon\u00edvel", Font.systemFont(10), COR.suave);
     return;
   }
   const topo = bloco.addStack();
   topo.layoutHorizontally();
   topo.centerAlignContent();
-  texto(topo, compacto ? "SALDO" : "PATRIMÔNIO", Font.boldSystemFont(9), COR.suave);
+  texto(topo, compacto ? "SALDO" : "PATRIM\u00d4NIO", Font.boldSystemFont(9), COR.suave);
   topo.addSpacer();
   texto(topo, brl(conta.patrimonio, 2), Font.boldMonospacedSystemFont(compacto ? 12 : 14), COR.ouro);
   if (!compacto) {
@@ -184,7 +184,7 @@ function linhaDoSaldo(pai, conta, compacto) {
 
 function montar(resultado, familia) {
   if (resultado.tokenInvalido) return avisoWidget("Token recusado. Abra o script no app Scriptable e cole o token de novo.");
-  if (!resultado.dados) return avisoWidget("Sem dados ainda (" + (resultado.erro || "sem conexão") + "). Abra o script no app para tentar de novo.");
+  if (!resultado.dados) return avisoWidget("Sem dados ainda (" + (resultado.erro || "sem conex\u00e3o") + "). Abra o script no app para tentar de novo.");
 
   const dados = resultado.dados;
   const pequeno = familia === "small";
@@ -217,7 +217,7 @@ function montar(resultado, familia) {
   const rodape = w.addStack();
   rodape.layoutHorizontally();
   const quando = hhmm(dados.geradoEm);
-  if (resultado.offline) texto(rodape, "OFFLINE · dado de " + quando, Font.systemFont(8), COR.aviso);
+  if (resultado.offline) texto(rodape, "OFFLINE \u00b7 dado de " + quando, Font.systemFont(8), COR.aviso);
   else texto(rodape, "atualizado " + quando, Font.systemFont(8), COR.suave);
   return w;
 }
@@ -238,7 +238,7 @@ async function principal() {
     }
   }
   const resultado = await buscar(token);
-  if (resultado.tokenInvalido && !config.runsInWidget) Keychain.remove(CHAVE_TOKEN); // na próxima vez no app, pede de novo
+  if (resultado.tokenInvalido && !config.runsInWidget) Keychain.remove(CHAVE_TOKEN); // na pr\u00f3xima vez no app, pede de novo
   const w = montar(resultado, familia);
   if (config.runsInWidget) Script.setWidget(w);
   else await w.presentLarge();
@@ -246,3 +246,4 @@ async function principal() {
 }
 
 await principal();
+
