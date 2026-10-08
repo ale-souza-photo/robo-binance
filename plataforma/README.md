@@ -18,8 +18,9 @@ npm test                         (testes)
 ```
 
 ## Colocar online (uma vez só)
-1. **Supabase** (supabase.com, grátis): crie um projeto. Em *SQL Editor*, cole o conteúdo de
-   `supabase/migrations/0001_base.sql` e execute.
+1. **Supabase**: as tabelas ficam no schema `traderbit` (pode ser um projeto compartilhado, ex.: o do Rockefeller).
+   Aplique `supabase/migrations/0001_base.sql` (SQL Editor). Depois, em *Project Settings → API → Exposed schemas*,
+   adicione `traderbit` e salve.
 2. Em *Authentication → Users*, crie o seu usuário (seu e-mail). Em *Authentication → Providers → Email*,
    **desligue "Allow new users to sign up"**. Em *URL Configuration*, ponha a URL final do site em *Site URL*
    e `https://SEU-SITE/auth/callback` em *Redirect URLs*.

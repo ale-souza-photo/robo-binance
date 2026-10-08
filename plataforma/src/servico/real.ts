@@ -18,7 +18,7 @@ export function defDeLinha(l: LinhaAtivo): AtivoDef {
 }
 
 /** Liga o serviço ao banco de verdade. Recebe o cliente de serviço (servidor). */
-export function criarDependencias(db: SupabaseClient, brapiToken?: string): Dependencias & { donoId: () => string | null } {
+export function criarDependencias(db: SupabaseClient<any, any, any>, brapiToken?: string): Dependencias & { donoId: () => string | null } {
   let dono: string | null = null;
   return {
     donoId: () => dono,
