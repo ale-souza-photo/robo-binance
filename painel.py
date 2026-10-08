@@ -5,13 +5,14 @@ Uso (na MESMA pasta do main.py, em outro terminal):
     python painel.py --demo          # dados fictícios, para ver a tela sem o robô
     python painel.py --demo --modo REAL     # pré-visualiza o visual do modo real
 
-Só usa a biblioteca padrão do Python. Segurança:
+Só usa a biblioteca padrão do Python (o DCA usa o ccxt, que o robô já exige). Segurança:
 - Escuta APENAS em 127.0.0.1 (nada de rede/Wi-Fi) e recusa outros nomes de host.
 - Não envia ordens e não vê suas chaves. O único botão de ação cria/apaga o PARAR.txt.
 """
 import argparse
 import csv
 import json
+import math
 import os
 import random
 import threading
@@ -98,6 +99,74 @@ def montar_resposta(demo=None):
             "eventos": eventos[-80:], "resumo": resumir(eventos)}
 
 
+# ---------------------------------------------------------------------- DCA
+_precos = {"t": 0.0, "dados": {}, "fio": None}
+_ex_publica = None
+
+
+def _buscar_precos(simbolos):
+    """Preços de referência pela API PÚBLICA da Binance (sem chave). Roda em segundo plano."""
+    global _ex_publica
+    try:
+        if _ex_publica is None:
+            import scanner
+            _ex_publica = scanner.criar_exchange()
+        for s in simbolos:
+            try:
+                p = _ex_publica.fetch_ticker(s).get("last")
+                if p:
+                    _precos["dados"][s] = p
+            except Exception:
+                pass
+    except Exception:
+        pass
+    _precos["t"] = time.time()
+
+
+def precos_de_referencia(simbolos, ttl=30):
+    """Devolve os últimos preços conhecidos e atualiza em segundo plano (nunca trava a tela)."""
+    fio = _precos["fio"]
+    if time.time() - _precos["t"] > ttl and not (fio and fio.is_alive()):
+        _precos["fio"] = fio = threading.Thread(target=_buscar_precos, args=(list(simbolos),), daemon=True)
+        fio.start()
+        if not _precos["dados"]:
+            fio.join(4)  # na primeira vez espera um pouco, para a tela já abrir com valores
+    return dict(_precos["dados"])
+
+
+def ler_registro_dca():
+    caminho = "dca_registro.csv"
+    linhas = []
+    try:
+        with open(caminho, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                try:
+                    t = int(datetime.fromisoformat(r["data_hora"]).timestamp() * 1000)
+                except (KeyError, ValueError):
+                    continue
+                linhas.append({"t": t, "evento": r.get("evento", ""), "ativo": r.get("ativo", ""),
+                               "preco": _num(r.get("preco")), "quantidade": _num(r.get("quantidade")),
+                               "custo": _num(r.get("custo")), "detalhe": r.get("detalhe", "")})
+    except OSError:
+        pass
+    return linhas
+
+
+def montar_dca(demo=None):
+    """Dados da tela do DCA. Só leitura: nunca compra nada."""
+    if demo:
+        return demo.dca()
+    try:
+        import dca
+    except Exception as erro:  # ccxt ausente etc.
+        return {"erro": f"não consegui carregar o DCA: {erro}"}
+    modo = dca.modo_atual()
+    estado = dca.carregar_estado(dca.caminho_estado(modo), modo)
+    dados = dca.dados_painel(estado, modo, precos_de_referencia(list(config.DCA_ATIVOS)))
+    dados.update(demo=False, eventos=ler_registro_dca()[-15:], problemas=dca.validar_config())
+    return dados
+
+
 # --------------------------------------------------------------------- demo
 class Demo:
     """Gera um robô fictício (preço aleatório, cruzamentos, compras e vendas)."""
@@ -137,6 +206,38 @@ class Demo:
             self.eventos.append(self._ev(t + 240_000, "VENDA", preco, qtd, pnl, "alvo" if ganhou else "stop"))
             self.pnl_dia += pnl
             t += 420_000
+
+    def dca(self):
+        """Carteira de DCA fictícia: 5 meses de compras e preços que oscilam."""
+        import dca
+        agora = time.time()
+        hoje = datetime.fromtimestamp(agora)
+        compras_px = {"BTC/USDT": [64800, 66100, 67900, 66500, 67300], "ETH/USDT": [2380, 2450, 2520, 2490, 2510]}
+        estado, usados, eventos = {"modo": self.modo, "periodos": {}, "ativos": {}}, {}, []
+        meses = []
+        ano, mes = hoje.year, hoje.month
+        for _ in range(5):
+            meses.append((ano, mes))
+            ano, mes = (ano - 1, 12) if mes == 1 else (ano, mes - 1)
+        for ano, mes in reversed(meses):
+            simbolo = dca.escolher_ativo(config.DCA_ATIVOS, estado["ativos"], config.DCA_VALOR_POR_RODADA)
+            preco = compras_px.get(simbolo, [100, 102, 101, 99, 103])[usados.get(simbolo, 0) % 5]
+            usados[simbolo] = usados.get(simbolo, 0) + 1
+            custo = config.DCA_VALOR_POR_RODADA
+            qtd = custo / preco * (1 - config.TAXA)
+            t = int(datetime(ano, mes, min(config.DCA_DIA, 28), 12).timestamp() * 1000)
+            estado["periodos"][f"{ano}-{mes:02d}"] = {"status": "ok", "ativo": simbolo, "custo": custo, "qtd": qtd,
+                                                      "preco": preco, "t": t, "mes": f"{ano}-{mes:02d}"}
+            a = estado["ativos"].setdefault(simbolo, {"custo": 0.0, "qtd": 0.0})
+            a["custo"] += custo
+            a["qtd"] += qtd
+            eventos.append({"t": t, "evento": "COMPRA", "ativo": simbolo, "preco": preco, "quantidade": qtd,
+                            "custo": custo, "detalhe": f"período {ano}-{mes:02d}, modo {self.modo}"})
+        base = {"BTC/USDT": 67000, "ETH/USDT": 2520}
+        precos = {s: base.get(s, 100) * (1 + 0.03 * math.sin(agora / (70 + 20 * i) + i)) for i, s in enumerate(config.DCA_ATIVOS)}
+        dados = dca.dados_painel(estado, self.modo, precos, agora)
+        dados.update(demo=True, eventos=eventos[-15:], problemas=[])
+        return dados
 
     def passo(self):
         with self.lock:
@@ -211,6 +312,8 @@ def criar_handler(demo):
                 return self._enviar(403)
             if self.path.split("?")[0] == "/api/estado":
                 return self._enviar(200, json.dumps(montar_resposta(demo), allow_nan=False).encode())
+            if self.path.split("?")[0] == "/api/dca":
+                return self._enviar(200, json.dumps(montar_dca(demo), allow_nan=False).encode())
             if self.path.split("?")[0] in ("/", "/index.html"):
                 try:
                     return self._enviar(200, (PASTA_WEB / "index.html").read_bytes(), "text/html; charset=utf-8")

@@ -210,5 +210,71 @@ class Rodada(Base):
         self.assertIn("+9.", texto)  # subiu ~10% menos a taxa simulada
 
 
+class PainelDca(Base):
+    def estado_exemplo(self):
+        return {"modo": "TESTNET", "ativos": {"BTC/USDT": {"custo": 30.0, "qtd": 0.0003}, "ETH/USDT": {"custo": 10.0, "qtd": 0.004}},
+                "periodos": {"2026-09": {"status": "ok", "ativo": "BTC/USDT", "custo": 10.0, "qtd": 0.0001, "preco": 100000.0,
+                                         "t": 2, "mes": "2026-09"},
+                             "2026-10": {"status": "ok", "ativo": "ETH/USDT", "custo": 10.0, "qtd": 0.004, "preco": 2500.0,
+                                         "t": 3, "mes": "2026-10"}}}
+
+    def test_totais_pesos_e_resultado(self):
+        d = dca.dados_painel(self.estado_exemplo(), "TESTNET", {"BTC/USDT": 120000.0, "ETH/USDT": 2500.0},
+                             agora=quando(2026, 10, 20))
+        self.assertAlmostEqual(d["total"]["custo"], 40.0)
+        self.assertAlmostEqual(d["total"]["valor"], 0.0003 * 120000 + 0.004 * 2500)   # 36 + 10
+        self.assertAlmostEqual(d["total"]["resultado_pct"], 100 * (46 / 40 - 1))
+        btc = next(a for a in d["ativos"] if a["simbolo"] == "BTC/USDT")
+        self.assertAlmostEqual(btc["peso_real"], 0.75)
+        self.assertAlmostEqual(btc["medio"], 100000.0)
+        self.assertEqual(d["moeda"], "USDT")
+        self.assertEqual(d["periodo"]["status"], "ok")
+        self.assertEqual(d["proxima"]["situacao"], "feita")
+        self.assertAlmostEqual(d["mes"]["gasto"], 10.0)
+
+    def test_sem_precos_nao_quebra(self):
+        d = dca.dados_painel(self.estado_exemplo(), "TESTNET", {}, agora=quando(2026, 10, 20))
+        self.assertIsNone(d["total"]["valor"])
+        self.assertIsNone(d["total"]["resultado_pct"])
+        self.assertTrue(all(a["preco"] is None and a["resultado_pct"] is None for a in d["ativos"]))
+
+    def test_estado_vazio(self):
+        d = dca.dados_painel({"periodos": {}, "ativos": {}}, "SIMULADO", {}, agora=quando(2026, 10, 6))
+        self.assertEqual(d["total"]["custo"], 0)
+        self.assertEqual(d["compras"], [])
+        self.assertEqual(d["proxima"]["situacao"], "pode_agora")
+        self.assertIsNone(d["alerta"])
+
+    def test_alerta_quando_ha_compra_pendente(self):
+        est = {"periodos": {"2026-10": {"status": "pendente", "ativo": "BTC/USDT", "custo": 0, "qtd": 0, "preco": 1, "t": 1}},
+               "ativos": {}}
+        d = dca.dados_painel(est, "REAL", {}, agora=quando(2026, 10, 6))
+        self.assertIn("PENDENTE", d["alerta"])
+        self.assertEqual(d["proxima"]["situacao"], "feita")  # pendente também impede nova compra no período
+
+    def test_proxima_data(self):
+        vazio = {"periodos": {}, "ativos": {}}
+        self.assertEqual(dca.proxima_data(datetime(2026, 10, 3, 12), "mensal", 5, vazio), (datetime(2026, 10, 5).date(), "aguardando"))
+        self.assertEqual(dca.proxima_data(datetime(2026, 10, 6, 12), "mensal", 5, vazio)[1], "pode_agora")
+        feito = {"periodos": {"2026-12": {"status": "ok"}}, "ativos": {}}
+        self.assertEqual(dca.proxima_data(datetime(2026, 12, 6, 12), "mensal", 5, feito), (datetime(2027, 1, 5).date(), "feita"))
+        # dia 31 num mês curto não pode quebrar
+        feito_jan = {"periodos": {"2027-01": {"status": "ok"}}, "ativos": {}}
+        self.assertEqual(dca.proxima_data(datetime(2027, 1, 31, 12), "mensal", 31, feito_jan)[0], datetime(2027, 2, 28).date())
+        # semanal: terça (weekday 1) já passou do dia 0; feita -> próxima segunda + 0
+        sem = {"periodos": {dca.periodo_id(datetime(2026, 10, 6), "semanal"): {"status": "ok"}}, "ativos": {}}
+        self.assertEqual(dca.proxima_data(datetime(2026, 10, 6, 12), "semanal", 0, sem), (datetime(2026, 10, 12).date(), "feita"))
+        self.assertEqual(dca.proxima_data(datetime(2026, 10, 6, 12), "diaria", 5, {"periodos": {"2026-10-06": {"status": "ok"}}, "ativos": {}})[0],
+                         datetime(2026, 10, 7).date())
+
+    def test_demo_do_painel_tem_carteira_coerente(self):
+        import painel
+        d = painel.Demo("TESTNET").dca()
+        self.assertTrue(d["demo"])
+        self.assertAlmostEqual(d["total"]["custo"], 5 * config.DCA_VALOR_POR_RODADA)
+        self.assertEqual(len(d["compras"]), 5)
+        self.assertAlmostEqual(sum(a["peso_real"] for a in d["ativos"]), 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()

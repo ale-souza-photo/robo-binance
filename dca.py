@@ -22,12 +22,13 @@ Como o dinheiro é protegido:
 Cada modo tem seu próprio arquivo de estado (dca_estado_<MODO>.json) e o registro vai para dca_registro.csv.
 """
 import argparse
+import calendar
 import csv
 import json
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import config
 import scanner
@@ -258,6 +259,74 @@ class Dca:
         if compras:
             linhas.append("  últimas compras: " + " | ".join(f"{k}: {v['ativo']} {v['custo']:.2f} ({v['status']})" for k, v in compras))
         return "\n".join(linhas)
+
+
+# ------------------------------------------------------------- dados do painel
+def proxima_data(dt, freq, dia, estado):
+    """Quando acontece (ou aconteceu) a próxima compra. Retorna (data, situacao).
+    situacao: 'pode_agora' (já é a hora e ainda não comprou), 'aguardando' (ainda não chegou o dia),
+    'feita' (o período atual já teve a compra; a data é a do próximo período)."""
+    hoje = dt.date()
+    pid = periodo_id(dt, freq)
+    feita = estado["periodos"].get(pid, {}).get("status") in ("ok", "pendente")
+
+    def dia_do_mes(ano, mes):
+        return date(ano, mes, min(max(int(dia), 1), calendar.monthrange(ano, mes)[1]))
+
+    if not feita:
+        if esta_na_hora(dt, freq, dia):
+            return hoje, "pode_agora"
+        if freq == "mensal":
+            return dia_do_mes(hoje.year, hoje.month), "aguardando"
+        return hoje + timedelta(days=int(dia) - hoje.weekday()), "aguardando"  # semanal
+    if freq == "diaria":
+        return hoje + timedelta(days=1), "feita"
+    if freq == "semanal":
+        segunda = hoje - timedelta(days=hoje.weekday()) + timedelta(days=7)
+        return segunda + timedelta(days=int(dia)), "feita"
+    ano, mes = (hoje.year + 1, 1) if hoje.month == 12 else (hoje.year, hoje.month + 1)
+    return dia_do_mes(ano, mes), "feita"
+
+
+def dados_painel(estado, modo, precos, agora=None):
+    """Tudo o que a tela do DCA mostra, em um dicionário simples (sem acesso à rede)."""
+    dt = datetime.fromtimestamp(time.time() if agora is None else agora)
+    freq = config.DCA_FREQUENCIA
+    pesos = config.DCA_ATIVOS
+    moeda = next(iter(pesos)).split("/")[1] if pesos else ""
+    total_custo = sum(a.get("custo", 0.0) for a in estado["ativos"].values())
+    ativos, total_valor = [], 0.0
+    for simbolo, meta in pesos.items():
+        a = estado["ativos"].get(simbolo, {"custo": 0.0, "qtd": 0.0})
+        preco = precos.get(simbolo)
+        valor = a["qtd"] * preco if preco else None
+        total_valor += valor or 0.0
+        ativos.append({"simbolo": simbolo, "meta": meta, "qtd": a["qtd"], "custo": a["custo"],
+                       "medio": a["custo"] / a["qtd"] if a["qtd"] else None, "preco": preco, "valor": valor,
+                       "resultado_pct": 100 * (valor / a["custo"] - 1) if (valor is not None and a["custo"]) else None,
+                       "peso_real": a["custo"] / total_custo if total_custo else 0.0})
+    pid = periodo_id(dt, freq)
+    atual = estado["periodos"].get(pid)
+    data, situacao = proxima_data(dt, freq, config.DCA_DIA, estado)
+    compras = sorted(({"periodo": k, **v} for k, v in estado["periodos"].items()), key=lambda x: x.get("t", 0))
+    alerta = None
+    if any(c.get("status") == "pendente" for c in compras):
+        alerta = ("Há uma compra PENDENTE: uma ordem pode ter sido enviada sem confirmação. Confira o histórico "
+                  "de ordens na Binance antes de rodar o DCA de novo.")
+    return {
+        "modo": modo, "moeda": moeda,
+        "config": {"frequencia": freq, "dia": config.DCA_DIA, "valor": config.DCA_VALOR_POR_RODADA,
+                   "teto": config.DCA_TETO_MENSAL, "ativos": pesos},
+        "ativos": ativos,
+        "total": {"custo": total_custo, "valor": total_valor if any(x["preco"] for x in ativos) else None,
+                  "resultado_pct": (100 * (total_valor / total_custo - 1)
+                                    if total_custo and any(x["preco"] for x in ativos) else None)},
+        "periodo": {"id": pid, "status": (atual or {}).get("status"), "ativo": (atual or {}).get("ativo")},
+        "proxima": {"data": data.isoformat(), "dias": (data - dt.date()).days, "situacao": situacao,
+                    "ativo_sugerido": escolher_ativo(pesos, estado["ativos"], config.DCA_VALOR_POR_RODADA) if pesos else None},
+        "mes": {"gasto": gasto_no_mes(estado, dt), "teto": config.DCA_TETO_MENSAL},
+        "compras": compras[-12:], "alerta": alerta,
+    }
 
 
 # ------------------------------------------------------------------ programa

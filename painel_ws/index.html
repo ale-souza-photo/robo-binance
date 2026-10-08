@@ -61,6 +61,12 @@ header{position:relative;display:flex;align-items:center;gap:16px;flex-wrap:wrap
 .btn.stop{color:var(--down);background:rgba(255,77,94,.07)}
 .btn.stop:hover{background:rgba(255,77,94,.2)}
 
+/* ---------- abas ---------- */
+.abas{display:flex;gap:4px;padding:8px 22px 0;background:#080b0f;border-bottom:1px solid var(--edge)}
+.aba{border:0;background:transparent;padding:10px 20px 9px;font-weight:800;font-size:11px;letter-spacing:.16em;color:var(--mut);border-bottom:2px solid transparent;transition:.15s}
+.aba:hover{color:var(--gold)}
+.aba.on{color:var(--gold2);border-bottom-color:var(--gold);background:linear-gradient(180deg,transparent,rgba(212,175,55,.07))}
+
 /* ---------- faixa de cotações ---------- */
 .tape{height:30px;overflow:hidden;background:#080b0f;border-bottom:1px solid var(--edge);position:relative}
 .tape::before,.tape::after{content:"";position:absolute;top:0;bottom:0;width:60px;z-index:2;pointer-events:none}
@@ -178,6 +184,32 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 dialog h3{font-family:var(--serif);font-size:24px;color:var(--gold2);margin-bottom:8px}
 dialog p{font-size:13px;color:var(--mut);line-height:1.6}
 dialog .acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+/* ---------- DCA ---------- */
+.c-s4{grid-column:span 4}.c-d8{grid-column:span 8}.c-d4{grid-column:span 4}
+@media(max-width:1000px){.c-s4,.c-d8,.c-d4{grid-column:span 12}}
+.banner{display:none;margin-bottom:14px;padding:10px 14px;font-size:12.5px;font-weight:700;letter-spacing:.03em;line-height:1.5}
+.banner.on{display:block}
+.banner.erro{border:1px solid var(--down);color:var(--down);background:rgba(255,77,94,.08)}
+.banner.atencao{border:1px solid var(--amber);color:var(--amber);background:rgba(255,179,71,.07)}
+.dca-sub{font-size:12px;color:var(--mut);letter-spacing:.04em;margin:0 0 12px;line-height:1.5}
+.ativo{padding:13px 0;border-bottom:1px solid rgba(43,37,21,.6)}.ativo:last-child{border-bottom:0}
+.a-topo{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.a-topo b{font-family:var(--serif);font-size:22px;letter-spacing:.08em;color:var(--gold2);font-weight:700}
+.a-topo span{font-family:var(--mono);font-weight:700;font-size:15px}
+.a-barra{position:relative;height:8px;background:#12181f;margin:10px 0 9px}
+.a-barra i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--golddim),var(--gold2));transition:width .8s}
+.a-barra u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.a-det{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:11.5px;color:var(--mut)}
+.a-det b{color:var(--tx);font-family:var(--mono);font-weight:700}
+.prox-grande{font-family:var(--serif);font-size:36px;font-weight:700;color:var(--gold2);line-height:1.1}
+.prox-data{font-family:var(--mono);color:var(--mut);margin-top:6px;font-size:13px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin-top:14px;font-size:12.5px}
+.kv span{color:var(--mut)}.kv b{font-family:var(--mono);text-align:right;color:var(--tx);font-weight:700}
+.teto-l{display:flex;justify-content:space-between;margin-top:16px;font-size:10px;letter-spacing:.14em;font-weight:800;color:var(--mut)}
+.teto-l b{font-family:var(--mono);letter-spacing:0;color:var(--tx);font-size:12px}
+.regras{list-style:none;padding:0}.regras li{padding:8px 0 8px 18px;position:relative;font-size:12.5px;line-height:1.55;color:var(--mut);border-bottom:1px solid rgba(43,37,21,.5)}
+.regras li:last-child{border:0}.regras li::before{content:"◆";position:absolute;left:0;color:var(--golddim);font-size:8px;top:12px}
+.regras b{color:var(--tx)}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.001s!important}}
 </style>
 </head>
@@ -195,9 +227,13 @@ dialog .acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
   <div class="beat off" id="beat"><b></b><span id="beatTxt">CONECTANDO…</span></div>
   <button class="btn stop" id="btnParar" type="button">PARAR O ROBÔ</button>
 </header>
+<nav class="abas" aria-label="Seções">
+  <button class="aba on" data-aba="trade" type="button">ROBÔ DE TRADE</button>
+  <button class="aba" data-aba="dca" type="button">DCA · COMPRA PERIÓDICA</button>
+</nav>
 <div class="tape"><div class="tape-in" id="tape"></div></div>
 
-<div class="wrap">
+<div class="wrap" id="tradeWrap">
   <div class="aviso" id="avisoDemo">DEMONSTRAÇÃO · os dados desta tela são fictícios. O robô real não está sendo mostrado.</div>
 
   <div class="card sem-robo" id="semRobo">
@@ -273,6 +309,48 @@ dialog .acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
   </main>
 </div>
 
+<div class="wrap" id="dcaWrap" hidden>
+  <div class="aviso" id="dcaDemo">DEMONSTRAÇÃO · a carteira desta tela é fictícia.</div>
+  <div class="banner erro" id="dcaAlerta" role="alert"></div>
+  <div class="banner atencao" id="dcaProblemas"></div>
+  <div class="banner atencao" id="dcaRede">O painel perdeu a conexão com o computador. Tentando de novo…</div>
+  <main class="grid">
+    <section class="card c-s4 stat"><h2>Investido</h2><div class="valor num" id="dInv">—</div><div class="nota" id="dInvN">Soma de todas as compras.</div></section>
+    <section class="card c-s4 stat"><h2>Valor atual</h2><div class="valor num" id="dVal">—</div><div class="nota">Quanto vale hoje o que você acumulou, pelo preço de referência da Binance (mercado real).</div></section>
+    <section class="card c-s4 stat"><h2>Resultado</h2><div class="valor num" id="dRes">—</div><div class="nota" id="dResN">Em relação ao que foi investido.</div></section>
+
+    <section class="card c-d8">
+      <h2>Carteira · meta e real</h2>
+      <p class="dca-sub">Barra dourada: quanto cada ativo ocupa hoje do que você investiu. Traço azul: a meta definida no config.py.</p>
+      <div id="dCarteira"></div>
+    </section>
+    <section class="card c-d4">
+      <h2>Próxima compra</h2>
+      <div class="prox-grande" id="pxTitulo">—</div>
+      <div class="prox-data" id="pxData"></div>
+      <div class="kv" id="pxKv"></div>
+      <div class="teto-l"><span>GASTO NO MÊS</span><b id="tetoTxt">—</b></div>
+      <div class="barra"><i id="tetoBarra"></i></div>
+    </section>
+
+    <section class="card c-d8">
+      <h2>Histórico de compras</h2>
+      <ul class="feed" id="dFeed"></ul>
+      <p class="vazio" id="dVazio" hidden>Nenhuma compra ainda. Para testar agora, no terminal: <code>python dca.py --forcar</code>. Sem isso, a primeira compra acontece no dia configurado do período.</p>
+    </section>
+    <section class="card c-d4">
+      <h2>Como funciona</h2>
+      <ul class="regras">
+        <li><b>Uma compra por período</b> (mês, semana ou dia). Rodar de novo no mesmo período não compra nada.</li>
+        <li>Cada compra vai para o <b>ativo mais abaixo da meta</b>.</li>
+        <li>Existe um <b>teto de gasto por mês</b>: ao chegar nele, o DCA para.</li>
+        <li>Se uma ordem falhar no meio, o período fica <b>PENDENTE</b> e o DCA espera você conferir na Binance.</li>
+        <li><b>Esta tela só mostra.</b> Quem compra é o comando <code>python dca.py</code>.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <dialog id="dlg">
   <h3 id="dlgT">Parar o robô?</h3><p id="dlgP"></p>
@@ -292,7 +370,8 @@ const hex = h => [1,3,5].map(i => parseInt(h.substr(i,2),16));
 const mix = (a,b,t) => { t = clamp(t,0,1); const A=hex(a),B=hex(b); return 'rgb('+A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')+')'; };
 const sma = (v,n,i) => i < n-1 ? null : v.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n;
 
-let S = {d:null, ultimoPreco:null, vistos:null, feedKey:'', hover:null, erroRede:false, flash:{buy:0,win:0,loss:0},
+const ABAS = ['trade','dca'];
+let S = {aba:'trade', dca:null, modoTrade:'', d:null, ultimoPreco:null, vistos:null, feedKey:'', hover:null, erroRede:false, flash:{buy:0,win:0,loss:0},
          gauge:0, gaugeAlvo:0, tapeOff:0, tapeW:1, tapeKey:''};
 
 /* ---------- números que "rolam" ---------- */
@@ -319,10 +398,10 @@ function render(d){
   $('#semRobo').classList.toggle('on', !e);
   $('#conteudo').style.display = e ? '' : 'none';
   $('#btnParar').style.display = e ? '' : 'none';
-  if(!e){ document.documentElement.dataset.modo = ''; $('#pill').innerHTML = 'SEM ROBÔ'; batimento(); S.tapeKey=''; montaTape(null); return; }
-  document.documentElement.dataset.modo = e.modo;
+  if(!e){ S.modoTrade = ''; aplicaModo(); if (S.aba!=='dca') $('#pill').innerHTML = 'SEM ROBÔ'; batimento(); S.tapeKey=''; montaTape(null); return; }
+  S.modoTrade = e.modo; aplicaModo();
   const sub = {SIMULADO:'nenhuma ordem é enviada', TESTNET:'dinheiro de mentira', REAL:'DINHEIRO REAL'}[e.modo] || '';
-  $('#pill').innerHTML = `${esc(e.modo)} <small>· ${sub}</small>`;
+  if (S.aba !== 'dca') $('#pill').innerHTML = `${esc(e.modo)} <small>· ${sub}</small>`;
   $('#par').textContent = e.simbolo; $('#tf').textContent = e.timeframe==='demo' ? 'DEMONSTRAÇÃO' : 'CANDLES DE '+String(e.timeframe).toUpperCase();
   $('#conteudo').classList.toggle('dim', !d.vivo);
   batimento(); renderPreco(e); renderStatus(e, d); renderAnel(e); renderPista(e); renderStats(d.resumo); renderFeed(d.eventos); renderBotao(d, e); detectarNovos(d.eventos);
@@ -496,7 +575,7 @@ function passoConfete(){
 /* ---------- botão parar / cancelar (mesmo contrato do painel original) ---------- */
 function renderBotao(d, e){
   const b = $('#btnParar');
-  if (e.parado){ b.style.display = 'none'; return; }
+  if (e.parado || S.aba === 'dca'){ b.style.display = 'none'; return; }
   b.style.display = '';
   if (d.parar_ativo){ b.textContent = 'CANCELAR PARADA'; b.classList.remove('stop'); b.dataset.acao = 'retomar'; }
   else { b.textContent = 'PARAR O ROBÔ'; b.classList.add('stop'); b.dataset.acao = 'parar'; }
@@ -730,8 +809,80 @@ function loop(ts){
   if (frame % 6 == 0){ desenhaCandles(); desenhaCurva(); }
   requestAnimationFrame(loop);
 }
+/* ---------- abas e DCA ---------- */
+const MODO_SUB = {SIMULADO:'nenhuma ordem é enviada', TESTNET:'dinheiro de mentira', REAL:'DINHEIRO REAL'};
+function aplicaModo(){
+  const m = (S.aba==='dca' && S.dca && S.dca.modo) ? S.dca.modo : S.modoTrade;
+  document.documentElement.dataset.modo = m || '';
+}
+function mostraAba(a){
+  if (!ABAS.includes(a)) a = 'trade';
+  S.aba = a; try{ localStorage.setItem('aba', a); }catch(e){}
+  document.querySelectorAll('.aba').forEach(b => b.classList.toggle('on', b.dataset.aba === a));
+  $('#tradeWrap').hidden = a !== 'trade'; $('#dcaWrap').hidden = a !== 'dca';
+  document.querySelector('.tape').style.display = a === 'dca' ? 'none' : '';   // faixa e botão são do robô de trade
+  if (a === 'dca') $('#btnParar').style.display = 'none';
+  if (a === 'dca'){ if (S.dca) renderDca(S.dca); tickDca(); }
+  else { aplicaModo(); if (S.d) render(S.d); }
+}
+document.querySelectorAll('.aba').forEach(b => b.addEventListener('click', () => mostraAba(b.dataset.aba)));
+
+async function tickDca(){
+  clearTimeout(S.dcaT);
+  if (S.aba !== 'dca') return;
+  try{
+    const r = await fetch('/api/dca',{cache:'no-store'}); if(!r.ok) throw new Error(r.status);
+    S.dca = await r.json(); $('#dcaRede').classList.remove('on'); renderDca(S.dca);
+  }catch(e){ $('#dcaRede').classList.add('on'); }
+  S.dcaT = setTimeout(tickDca, 8000);
+}
+const dMoeda = (d, v, dec=2) => v==null ? '—' : (d.moeda==='BRL' ? 'R$ '+nf(v,dec) : nf(v,dec)+' '+d.moeda);
+function renderDca(d){
+  if (d.erro){ const b=$('#dcaAlerta'); b.textContent = d.erro; b.classList.add('on'); return; }
+  aplicaModo();
+  $('#pill').innerHTML = `DCA · ${esc(d.modo)} <small>· ${MODO_SUB[d.modo]||''}</small>`;
+  $('#dcaDemo').classList.toggle('on', !!d.demo);
+  const al = $('#dcaAlerta'); al.textContent = d.alerta || ''; al.classList.toggle('on', !!d.alerta);
+  const pr = $('#dcaProblemas'); pr.textContent = (d.problemas && d.problemas.length) ? 'Configuração do DCA com problema: ' + d.problemas.join('; ') + '.' : ''; pr.classList.toggle('on', !!(d.problemas && d.problemas.length));
+
+  const t = d.total, res = t.resultado_pct;
+  rola($('#dInv'), t.custo, v => dMoeda(d, v));
+  $('#dInvN').textContent = d.compras.filter(c=>c.status==='ok').length + ' compra(s) concluída(s).';
+  const dv = $('#dVal'); if (t.valor==null) dv.textContent = '—'; else rola(dv, t.valor, v => dMoeda(d, v));
+  const dr = $('#dRes'); dr.className = 'valor num ' + (res==null ? '' : res>=0 ? 'pos' : 'neg');
+  if (res==null) dr.textContent = '—'; else rola(dr, res, v => sg(v,2)+'%');
+  $('#dResN').textContent = res==null ? 'Aparece quando houver compra e preço de referência.' : `${sg(t.valor - t.custo,2)} ${d.moeda==='BRL'?'R$':d.moeda} desde o início.`;
+
+  $('#dCarteira').innerHTML = d.ativos.map(a => {
+    const cls = a.resultado_pct==null ? '' : a.resultado_pct>=0 ? 'pos' : 'neg', base = esc(a.simbolo.split('/')[0]);
+    return `<div class="ativo"><div class="a-topo"><b>${esc(a.simbolo)}</b><span class="${cls}">${a.resultado_pct==null?'—':sg(a.resultado_pct,2)+'%'}</span></div>
+      <div class="a-barra"><i style="width:${(a.peso_real*100).toFixed(1)}%"></i><u style="left:${(a.meta*100).toFixed(1)}%"></u></div>
+      <div class="a-det"><span>meta <b>${nf(a.meta*100,0)}%</b></span><span>real <b>${nf(a.peso_real*100,0)}%</b></span>
+      <span>quantidade <b>${nf(a.qtd,8)} ${base}</b></span><span>preço médio <b>${a.medio==null?'—':nf(a.medio)}</b></span>
+      <span>agora <b>${a.preco==null?'—':nf(a.preco)}</b></span><span>valor <b>${dMoeda(d, a.valor)}</b></span></div></div>`;
+  }).join('');
+
+  const px = d.proxima, dias = px.dias, data = new Date(px.data + 'T12:00:00').toLocaleDateString('pt-BR');
+  if (px.situacao === 'pode_agora'){ $('#pxTitulo').textContent = 'JÁ PODE COMPRAR'; $('#pxData').textContent = 'Rode python dca.py no terminal.'; }
+  else { $('#pxTitulo').textContent = (px.situacao==='feita' ? 'PRÓXIMA EM ' : 'EM ') + dias + (dias===1 ? ' DIA' : ' DIAS'); $('#pxData').textContent = data; }
+  const per = d.periodo, st = per.status==='ok' ? `✓ feita (${per.ativo})` : per.status==='pendente' ? '⚠ PENDENTE' : 'ainda não feita';
+  const fr = {mensal:'mensal', semanal:'semanal', diaria:'diária'}[d.config.frequencia] || d.config.frequencia;
+  const regraDia = d.config.frequencia==='mensal' ? ` · a partir do dia ${d.config.dia}` : d.config.frequencia==='semanal' ? ` · a partir de ${['seg','ter','qua','qui','sex','sáb','dom'][d.config.dia]||'?'}` : '';
+  $('#pxKv').innerHTML = `<span>Compra deste período</span><b>${esc(st)}</b><span>Ativo da vez</span><b>${esc(px.ativo_sugerido||'—')}</b><span>Valor por compra</span><b>${dMoeda(d, d.config.valor)}</b><span>Frequência</span><b>${fr}${regraDia}</b>`;
+  $('#tetoTxt').textContent = `${dMoeda(d, d.mes.gasto)} / ${dMoeda(d, d.mes.teto)}`;
+  $('#tetoBarra').style.width = Math.min(100, d.mes.teto ? 100*d.mes.gasto/d.mes.teto : 0) + '%';
+
+  const lista = d.compras.slice().reverse();
+  $('#dVazio').hidden = lista.length > 0;
+  $('#dFeed').innerHTML = lista.map(c => {
+    const ok = c.status==='ok', cor = ok ? '--gold' : '--down', ic = ok ? '▲' : '⚠';
+    return `<li style="animation:none"><span class="ic" style="--c:var(${cor})">${ic}</span><div>${ok ? `Comprou <b>${nf(c.qtd,8)}</b> ${esc(c.ativo.split('/')[0])} por <b>${dMoeda(d, c.custo)}</b> · preço <b>${nf(c.preco)}</b>` : `<b class="neg">PENDENTE</b> · ${esc(c.ativo)}: confira na Binance se a ordem foi enviada`}<time>${esc(c.periodo)} · ${new Date(c.t).toLocaleDateString('pt-BR')} ${new Date(c.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</time></div></li>`;
+  }).join('');
+}
+
 setInterval(() => { $('#relogio').textContent = new Date().toLocaleTimeString('pt-BR'); batimento(); }, 1000);
 tick(); requestAnimationFrame(loop);
+{ let a = 'trade'; try{ a = localStorage.getItem('aba') || 'trade'; }catch(e){} if (a !== 'trade') mostraAba(a); }
 </script>
 </body>
 </html>

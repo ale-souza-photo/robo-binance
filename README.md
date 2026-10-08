@@ -50,7 +50,11 @@ vermelho com borda de alerta).
 - O robô grava `estado.json` a cada ciclo; o painel lê esse arquivo e o `registro.csv`.
 - Segurança: escuta só em 127.0.0.1, não envia ordens e não vê suas chaves. O único botão cria/apaga
   o `PARAR.txt`. As duas versões usam o mesmo servidor (`painel.py`); a tela fica em `painel_ws/` e `painel/`.
-- O painel mostra o robô de trade. O DCA ainda não aparece nele: use `python dca.py --status`.
+- **Duas abas no topo:** *Robô de trade* e *DCA · compra periódica*. A aba DCA mostra quanto você investiu,
+  o valor atual, o resultado, a carteira (meta contra real, preço médio de cada ativo), quando é a próxima
+  compra, o gasto do mês contra o teto e o histórico de compras. Ela só LÊ o `dca_estado_<MODO>.json`: quem
+  compra é o `python dca.py`. O "valor atual" usa preços de referência da API pública da Binance (mercado real).
+  A aba escolhida é lembrada ao recarregar a página.
 
 ## Comparar estratégias (novo)
 `python comparar.py` testa 7 estratégias (a atual do robô, tendência 50/200, rompimento Donchian
