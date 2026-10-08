@@ -101,3 +101,12 @@ export const gatilhoDoCron = (schedule: string | null): Gatilho => {
   const hora = Number(schedule.trim().split(/\s+/)[1]);
   return Number.isFinite(hora) && hora < 16 ? "cron_manha" : "cron_tarde";
 };
+
+/**
+ * Qual horário disparou a análise: o cabeçalho da Vercel (se vier) manda; senão vale o parâmetro `?gatilho=` (usado pelo
+ * agendador do Supabase), mas só os dois valores conhecidos; qualquer outra coisa vira "manual".
+ */
+export const gatilhoDaChamada = (schedule: string | null, parametro: string | null): Gatilho => {
+  if (schedule) return gatilhoDoCron(schedule);
+  return parametro === "cron_manha" || parametro === "cron_tarde" ? parametro : "manual";
+};
