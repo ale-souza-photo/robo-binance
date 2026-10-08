@@ -285,5 +285,23 @@ class Robustez(unittest.TestCase):
         self.assertAlmostEqual(pnl, sum(t["pnl"] for t in base["X"]))
 
 
+class PainelWallStreet(unittest.TestCase):
+    def test_lancador_aponta_para_a_skin_e_ela_existe(self):
+        import os
+        import painel
+        import painel_wallstreet
+        self.assertTrue(str(painel.PASTA_WEB).endswith("painel_ws"))
+        self.assertTrue(os.path.exists(os.path.join(str(painel.PASTA_WEB), "index.html")))
+
+    def test_skin_usa_o_contrato_seguro_da_api(self):
+        import os
+        raiz = os.path.dirname(os.path.abspath(__file__))
+        html = open(os.path.join(raiz, "painel_ws", "index.html"), encoding="utf-8").read()
+        self.assertIn("/api/estado", html)
+        self.assertIn("'X-Painel':'1'", html)           # sem isso o servidor recusa o botão de parar
+        self.assertNotIn("api_key", html.lower())       # a tela nunca deve tocar em chaves
+        self.assertNotIn("api_secret", html.lower())
+
+
 if __name__ == "__main__":
     unittest.main()

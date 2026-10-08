@@ -39,15 +39,18 @@ adivinhar preço. Com pouco dinheiro compra um ativo por vez, o mais abaixo da p
 - Testes: `python -m unittest testes_dca -v`.
 
 ## Painel gráfico (novo)
-Tela moderna no navegador, atualiza sozinha. Mostra preço e gráfico com as médias, a "pista da
-aposta" (bolinha entre STOP e ALVO), o freio do dia, estatísticas, diário e curva de resultado.
-O visual muda por modo: SIMULADO (azul), TESTNET (dourado, "dinheiro de mentira") e REAL
-(vermelho, com borda de alerta).
-- Com o robô rodando (`python main.py`), abra OUTRO terminal na MESMA pasta e rode `python painel.py`.
-- `python painel.py --demo` mostra dados fictícios, sem o robô. `--demo --modo REAL` mostra o visual do real.
+Tela no navegador que atualiza sozinha. **O comando oficial é `python painel_wallstreet.py`** (visual
+"Wall Street", preto e ouro). A versão colorida original continua disponível: `python painel.py`.
+Mostra preço e gráfico com as médias, a pista da aposta (STOP/ALVO), o freio do dia, estatísticas, diário,
+curva de resultado, candles, faixa de cotações e o aviso de modo (SIMULADO azul, TESTNET âmbar, REAL
+vermelho com borda de alerta).
+- Com o robô rodando (`python main.py`), abra OUTRO terminal na MESMA pasta e rode `python painel_wallstreet.py`.
+  Abre sozinho em http://localhost:8765 (se não abrir, digite o endereço).
+- `--demo` mostra dados fictícios, sem o robô. `--demo --modo REAL` mostra o visual do modo real.
 - O robô grava `estado.json` a cada ciclo; o painel lê esse arquivo e o `registro.csv`.
-- Segurança: escuta só em 127.0.0.1, não envia ordens e não vê suas chaves. O único botão de
-  ação cria/apaga o `PARAR.txt` (o robô não compra mais e encerra ao fechar a posição aberta).
+- Segurança: escuta só em 127.0.0.1, não envia ordens e não vê suas chaves. O único botão cria/apaga
+  o `PARAR.txt`. As duas versões usam o mesmo servidor (`painel.py`); a tela fica em `painel_ws/` e `painel/`.
+- O painel mostra o robô de trade. O DCA ainda não aparece nele: use `python dca.py --status`.
 
 ## Comparar estratégias (novo)
 `python comparar.py` testa 7 estratégias (a atual do robô, tendência 50/200, rompimento Donchian

@@ -149,7 +149,9 @@ class Demo:
             sinal, motivo = ("COMPRA", "média rápida cruzou para cima") if self._cruzou(fechos) \
                 else ("NADA", "sem cruzamento")
             estado = {"modo": self.modo, "simbolo": "BTC/USDT", "timeframe": "demo", "intervalo": 2,
-                      "valor_por_ordem": 10.0, "taxa": config.TAXA, "perda_max": config.PERDA_MAXIMA_DIARIA_USDT,
+                      "valor_por_ordem": 10.0, "taxa": config.TAXA,
+                      "trades_hoje": sum(1 for e in self.eventos if e["evento"] == "COMPRA"
+                                         and datetime.fromtimestamp(e["t"] / 1000).date() == datetime.now().date()), "perda_max": config.PERDA_MAXIMA_DIARIA_USDT,
                       "pnl_dia": round(self.pnl_dia, 4), "preco": self.preco, "candles": self.candles,
                       "posicao": self.posicao, "sinal": sinal, "motivo": motivo, "parado": self.parado,
                       "motivo_parada": "perda diária máxima atingida" if self.parado else "",
@@ -213,7 +215,7 @@ def criar_handler(demo):
                 try:
                     return self._enviar(200, (PASTA_WEB / "index.html").read_bytes(), "text/html; charset=utf-8")
                 except OSError:
-                    return self._enviar(500, "painel/index.html não encontrado".encode(), "text/plain; charset=utf-8")
+                    return self._enviar(500, f"{PASTA_WEB / 'index.html'} não encontrado".encode(), "text/plain; charset=utf-8")
             self._enviar(204 if self.path == "/favicon.ico" else 404)
 
         def do_POST(self):
