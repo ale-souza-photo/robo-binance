@@ -1,13 +1,10 @@
-import { baixarCotacaoBrapi } from "@/dados/bolsa";
 import { ehDono } from "@/lib/config";
 import { clienteServidor } from "@/lib/supabase/servidor";
+import { cotacaoBolsa } from "@/servico/cotacao-bolsa";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-/** Cache em memória por ticker. A brapi grátis dá 15.000 pedidos/mês e 1 ticker por pedido: 5 min bastam (o dado já vem atrasado). */
-const TTL_MS = 5 * 60_000;
-const cache = new Map<string, { em: number; preco: number; hora: string | null }>();
 const MAX_TICKERS = 10;
 
 /**
@@ -28,7 +25,6 @@ export async function GET(req: Request) {
   if (error) return Response.json({ erro: "falha ao ler os ativos" }, { status: 500 });
   const permitidos = new Map((ativos ?? []).filter((a) => a.tipo !== "cripto" && a.tipo !== "cambio" && a.tipo !== "renda_fixa").map((a) => [a.id as string, a.referencia as string]));
 
-  const agora = Date.now();
   // Um ticker por vez: o plano grátis da brapi é de 1 ticker por chamada e pode recusar pedidos simultâneos.
   const cotacoes = [];
   for (const id of pedidos) {
@@ -37,15 +33,9 @@ export async function GET(req: Request) {
       cotacoes.push({ id, ok: false as const, erro: "ativo não cadastrado ou sem cotação ao vivo" });
       continue;
     }
-    const c = cache.get(ticker);
-    if (c && agora - c.em < TTL_MS) {
-      cotacoes.push({ id, ok: true as const, preco: c.preco, hora: c.hora, buscadoEm: new Date(c.em).toISOString(), cache: true });
-      continue;
-    }
     try {
-      const r = await baixarCotacaoBrapi(ticker, fetch, process.env.BRAPI_TOKEN);
-      cache.set(ticker, { em: Date.now(), preco: r.preco, hora: r.hora });
-      cotacoes.push({ id, ok: true as const, preco: r.preco, hora: r.hora, buscadoEm: new Date().toISOString(), cache: false });
+      const r = await cotacaoBolsa(ticker, process.env.BRAPI_TOKEN);
+      cotacoes.push({ id, ok: true as const, preco: r.preco, hora: r.hora, buscadoEm: r.buscadoEm, cache: r.cache });
     } catch (e) {
       const erro = e instanceof Error ? e.message : String(e);
       console.error(`cotacao ${id} falhou: ${erro}`); // vai para o log da Vercel (a resposta é 200, então sem isto o erro sumia)

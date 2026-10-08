@@ -1,6 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
-import { exigir, PADROES_ANALISE } from "@/lib/config";
+import { PADROES_ANALISE } from "@/lib/config";
+import { bearerConfere } from "@/lib/seguranca";
 import { clienteAdmin } from "@/lib/supabase/servidor";
 import { criarDependencias } from "@/servico/real";
 import { gatilhoDaChamada, rodarAnalise } from "@/servico/analise-cron";
@@ -8,20 +8,13 @@ import { gatilhoDaChamada, rodarAnalise } from "@/servico/analise-cron";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Compara em tempo constante (não vaza, pelo tempo de resposta, quantos caracteres do segredo estavam certos). */
-function segredoConfere(recebido: string | null, esperado: string): boolean {
-  const a = Buffer.from(recebido ?? "");
-  const b = Buffer.from(`Bearer ${esperado}`);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 /**
  * Chamado às 08:00 e 18:00 (Brasília) pelo agendador do Supabase (`?gatilho=cron_manha|cron_tarde`) ou pela Vercel,
  * sempre com o cabeçalho Authorization: Bearer CRON_SECRET. Sem o segredo certo, 401.
  */
 export async function GET(request: NextRequest) {
   const segredo = process.env.CRON_SECRET;
-  if (!segredo || !segredoConfere(request.headers.get("authorization"), segredo)) {
+  if (!bearerConfere(request.headers.get("authorization"), segredo)) {
     return new Response("Não autorizado", { status: 401 });
   }
   try {

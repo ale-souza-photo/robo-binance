@@ -17,6 +17,11 @@ export function urlStream(simbolos: string[]): string {
   return `wss://stream.binance.com:9443/stream?streams=${s}`;
 }
 
+/** Mesma consulta de 24 h, pelo endereço público de dados da Binance (o que os servidores da Vercel usam: ver baixarBinance). */
+export function urlTicker24hServidor(simbolos: string[]): string {
+  return `https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(simbolos))}`;
+}
+
 /** Reserva quando o WebSocket não conecta: consulta de 24h de vários pares de uma vez. */
 export function urlTicker24h(simbolos: string[]): string {
   return `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(simbolos))}`;
