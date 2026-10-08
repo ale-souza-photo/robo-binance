@@ -38,6 +38,18 @@ adivinhar preço. Com pouco dinheiro compra um ativo por vez, o mais abaixo da p
   tem pares em reais). O valor mínimo da Binance é lido na hora; se for maior que o seu, ele recusa e avisa.
 - Testes: `python -m unittest testes_dca -v`.
 
+## Análise de ativos (novo)
+`python analise_ativos.py` compara, EM REAIS e com dados públicos (sem chave), BTC, ETH, dólar, CDI (renda
+fixa), Ibovespa (BOVA11), S&P 500 (IVVB11) e as BDRs/ações que você quiser: retorno por ano, pior queda,
+quanto oscilam, em quantas janelas de 12 meses deu prejuízo, o quanto andam juntos (correlação) e carteiras
+de exemplo com aporte inicial e mensal como os seus. Gera também o relatório visual `analise_ativos.html`.
+- Fontes: Binance (cripto em BRL), Banco Central (dólar e CDI) e Yahoo Finance (bolsa brasileira).
+- `--extras AAPL34.SA,NVDC34.SA` acrescenta BDRs/ações; `--anos 8`; `--inicial 100 --mensal 50 --dia 5`;
+  `--carteira "Minha:BTC=0.3,IVVB11=0.3,CDI=0.4"` (pode repetir); `--atualizar` ignora os dados salvos
+  (ficam 20 h em `dados_analise/`); `--demo` usa dados FICTÍCIOS, sem internet, para ver o relatório.
+- Descreve o PASSADO: não prevê o futuro e não é recomendação de investimento.
+- Testes: `python -m unittest testes_analise -v`.
+
 ## Painel gráfico (novo)
 Tela no navegador que atualiza sozinha. **O comando oficial é `python painel_wallstreet.py`** (visual
 "Wall Street", preto e ouro). A versão colorida original continua disponível: `python painel.py`.
