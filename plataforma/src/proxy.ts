@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ehDono, supabaseConfigurado } from "@/lib/config";
 import { atualizarSessao } from "@/lib/supabase/proxy";
 
-/** Rotas abertas: login, retorno do login, saúde e cron (o cron se protege com CRON_SECRET). */
-const PUBLICAS = ["/login", "/auth", "/api/health", "/api/cron"];
+/** Rotas abertas: login, retorno do login, saúde, cron (protegido por CRON_SECRET) e widget (protegido por WIDGET_TOKEN). */
+const PUBLICAS = ["/login", "/auth", "/api/health", "/api/cron", "/api/widget"];
 
 export async function proxy(request: NextRequest) {
   // Sem Supabase configurado a plataforma só mostra o passo a passo de configuração.
