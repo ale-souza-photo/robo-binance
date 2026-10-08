@@ -4,17 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ATIVOS_PADRAO } from "@/dados/fontes";
 import { ehDono } from "@/lib/config";
+import { exigirDono } from "@/lib/dono";
 import { clienteServidor } from "@/lib/supabase/servidor";
 import { PADROES_ANALISE } from "@/lib/config";
 import { criarDependencias } from "@/servico/real";
 import { rodarAnalise } from "@/servico/analise-cron";
-
-async function exigirDono() {
-  const supabase = await clienteServidor();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user || !ehDono(data.user.email)) redirect("/login?erro=nao_autorizado");
-  return { supabase, user: data.user };
-}
 
 export async function entrar(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();

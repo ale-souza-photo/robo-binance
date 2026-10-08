@@ -5,6 +5,8 @@ import { baixarBrapi, baixarYahoo } from "./bolsa";
 import { type AtivoDef, type Fonte, type OpcoesCarga, type Serie, ErroFonte } from "./tipos";
 
 const MIN_PONTOS = 60;
+/** O plano gratuito da brapi só entrega ~3 meses de histórico; acima disso ela responde HTTP 400. */
+export const HISTORICO_MAX_BRAPI_ANOS = 0.25;
 
 async function porFonte(fonte: Fonte, ref: string, o: OpcoesCarga): Promise<Serie> {
   const agora = o.agora ?? new Date();
@@ -26,8 +28,10 @@ async function porFonte(fonte: Fonte, ref: string, o: OpcoesCarga): Promise<Seri
 
 /** Carrega a série de um ativo; se a fonte principal falhar, tenta a reserva (se houver). */
 export async function carregarSerie(def: AtivoDef, o: OpcoesCarga): Promise<{ serie: Serie; fonteUsada: Fonte; avisos: string[] }> {
-  const tentativas: { fonte: Fonte; ref: string }[] = [{ fonte: def.fonte, ref: def.ref }];
+  let tentativas: { fonte: Fonte; ref: string }[] = [{ fonte: def.fonte, ref: def.ref }];
   if (def.fallback) tentativas.push(def.fallback);
+  // brapi grátis não alcança o período pedido: vai direto à reserva, sem tentar (e sem aviso à toa).
+  if (def.fonte === "brapi" && def.fallback && o.anos > HISTORICO_MAX_BRAPI_ANOS) tentativas = tentativas.slice(1);
   const avisos: string[] = [];
   for (const t of tentativas) {
     try {

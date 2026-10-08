@@ -58,3 +58,11 @@ input:focus,select:focus{outline:2px solid var(--gold)}
 .aviso-topo{margin-bottom:14px;padding:9px 14px;border:1px solid var(--amber);color:var(--amber);font-size:12px;font-weight:800;letter-spacing:.05em;background:rgba(255,179,71,.07)}
 .login{max-width:440px;margin:12vh auto 0;padding:0 18px}
 .passos{padding-left:20px;font-size:13.5px;line-height:1.9}.passos li{margin-bottom:4px}
+
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:960px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--edge);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.kpi span{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--mut)}
+.kpi b{font-family:var(--mono);font-size:17px;color:var(--gold2);font-weight:600}
+.kpi b small{font-size:11px;font-weight:500}
+small{font-size:11px}

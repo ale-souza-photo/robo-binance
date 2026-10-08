@@ -39,10 +39,10 @@ Navegador ──► Next.js (Vercel, gru1) ──► Supabase (Postgres + Auth, 
 - `supabase/migrations/`: esquema do banco com RLS (cada linha pertence a um usuário).
 
 ## Fases (cada uma é utilizável)
-1. **Base**: projeto, login, banco, visual Wall Street. ✅ nesta etapa
-2. **Dados**: ingestão de cripto, dólar, CDI e brapi; tela para adicionar/remover ativos (inclui BDR).
-3. **Análises automáticas** 2x ao dia: o motor roda, grava no banco e mostra "o que mudou desde a última".
-4. **Paper trading**: contas de saldo fictício, ordens simuladas com taxa e slippage, posições, resultado, DCA simulado e travas.
+1. **Base**: projeto, login (e-mail e senha), banco, visual Wall Street. ✅
+2. **Dados**: ingestão de cripto, dólar, CDI e bolsa; tela para adicionar/remover ativos (inclui BDR). ✅ (histórico da bolsa via Yahoo: o plano grátis da brapi só dá 3 meses)
+3. **Análises automáticas** 2x ao dia: o motor roda, grava no banco e mostra "o que mudou desde a última". ✅ botão manual; o cron depende da chave de serviço correta
+4. **Paper trading**: contas de saldo fictício, ordens simuladas com taxa e slippage, posições, resultado, DCA simulado e travas. ✅ (aba CARTEIRA)
 5. **Mercado ao vivo**: preços em tempo real (cripto), gráficos, lista de acompanhamento, alertas.
 6. **Sinais e protocolos**: regras testadas com selo de evidência (e o robô de teste ao vivo em simulação).
 7. **Deploy na Vercel** e link a partir do Rockefeller.
