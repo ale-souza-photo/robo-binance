@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rodarAnalise, gatilhoDoCron, CARTEIRAS_PADRAO, type Dependencias, type RegistroAnalise } from "@/servico/analise-cron";
+import { rodarAnalise, gatilhoDoCron, gatilhoDaChamada, CARTEIRAS_PADRAO, type Dependencias, type RegistroAnalise } from "@/servico/analise-cron";
 import type { AtivoDef, Serie } from "@/dados/tipos";
 import { somaDias } from "@/core/datas";
 
@@ -98,5 +98,19 @@ describe("tarefa de análise (cron)", () => {
     expect(gatilhoDoCron("0 11 * * *")).toBe("cron_manha");
     expect(gatilhoDoCron("0 21 * * *")).toBe("cron_tarde");
     expect(gatilhoDoCron(null)).toBe("manual");
+  });
+});
+
+describe("gatilho da chamada (Supabase ou Vercel)", () => {
+  it("o parâmetro vale só para os dois horários conhecidos; o resto é manual", () => {
+    expect(gatilhoDaChamada(null, "cron_manha")).toBe("cron_manha");
+    expect(gatilhoDaChamada(null, "cron_tarde")).toBe("cron_tarde");
+    for (const x of [null, "", "manual", "cron_noite", "CRON_MANHA", "cron_manha; drop table x", "../../x"]) {
+      expect(gatilhoDaChamada(null, x)).toBe("manual");
+    }
+  });
+  it("o cabeçalho da Vercel, quando vem, manda sobre o parâmetro", () => {
+    expect(gatilhoDaChamada("0 21 * * *", "cron_manha")).toBe("cron_tarde");
+    expect(gatilhoDaChamada("0 11 * * *", null)).toBe("cron_manha");
   });
 });
