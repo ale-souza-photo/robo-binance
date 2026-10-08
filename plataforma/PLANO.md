@@ -45,7 +45,9 @@ Navegador ──► Next.js (Vercel, gru1) ──► Supabase (Postgres + Auth, 
 4. **Paper trading**: contas de saldo fictício, ordens simuladas com taxa e slippage, posições, resultado, DCA simulado e travas. ✅ (aba CARTEIRA)
 5. **Mercado ao vivo**: preços em tempo real (cripto), gráficos, lista de acompanhamento. ✅ (alertas ficam para depois: precisam de um vigia no servidor)
 6. **Sinais e protocolos**: regras testadas com selo de evidência. ✅ (o robô de teste ao vivo em simulação fica para depois)
-7. **Deploy na Vercel** e link a partir do Rockefeller.
+7. **Deploy na Vercel** e link a partir do Rockefeller. ✅ no ar. **Decisão: dois softwares separados.** A única ligação entre eles é:
+   (a) o Trader Bit LÊ o saldo da reserva de emergência do Rockefeller (somente leitura, `reservaAtual`) como saldo da conta de teste; e
+   (b) o Rockefeller ganha só um botão com link para abrir o Trader Bit. Nada é escrito no Rockefeller e cada app é publicado sozinho.
 8. **Ponte para o real**: chaves só no servidor, confirmação a cada operação, limites duros. Só com tudo validado.
 
 ## Segurança (online muda tudo)
