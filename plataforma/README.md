@@ -9,6 +9,8 @@ Plataforma web de testes de investimento (dinheiro fictício). Veja `PLANO.md` p
 - Histórico de análises; leitura rápida, estatísticas e carteiras com aportes.
 - **Carteira de teste (dinheiro fictício):** contas, compra e venda simuladas com taxa e slippage, posições com custo médio,
   resultado, DCA do mês (um por ativo e mês) e travas (saldo, venda a descoberto, trava de perda).
+- **Conta espelhada:** o saldo fictício acompanha a reserva de emergência do Rockefeller (somente leitura) pelo botão Sincronizar.
+- Excluir conta (com confirmação) pela própria tela.
 
 ## Rodar no seu PC
 ```

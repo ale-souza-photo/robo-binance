@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { aportarDca, criarConta, depositar, negociar } from "@/app/acoes-carteira";
+import { aportarDca, criarConta, depositar, excluirConta, negociar, sincronizarReserva } from "@/app/acoes-carteira";
 import { Cabecalho } from "@/components/Cabecalho";
-import { aplicar, avaliar, custosDoTipo } from "@/core/paper";
+import { aplicar, avaliar, custosDoTipo, planejarSincronia } from "@/core/paper";
 import { dataBr, horaBr, nf, pct, reais } from "@/lib/format";
 import { clienteServidor } from "@/lib/supabase/servidor";
-import { ativosNegociaveis, carregarMovimentos, listarContas, ultimosPrecos } from "@/servico/carteira-db";
+import { ativosNegociaveis, carregarMovimentos, lerReservaRockefeller, listarContas, ultimosPrecos, type ReservaRockefeller } from "@/servico/carteira-db";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +33,13 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
           {aviso}
           <div className="card">
             <h2>Criar a primeira conta</h2>
-            <form action={criarConta} className="linha">
+            <form action={criarConta} className="linha" style={{ flexDirection: "column", alignItems: "stretch" }}>
               <label className="campo">NOME<input name="nome" required maxLength={60} defaultValue="Minha conta de teste" /></label>
-              <label className="campo">SALDO INICIAL (R$)<input name="saldo" required inputMode="decimal" defaultValue="100" /></label>
-              <button className="btn" type="submit">CRIAR CONTA</button>
+              <label className="chip" style={{ cursor: "pointer", padding: "8px 12px" }}>
+                <input type="checkbox" name="espelho" value="1" defaultChecked style={{ minWidth: 0 }} /> ESPELHAR A RESERVA DE EMERGÊNCIA DO ROCKEFELLER (o saldo fictício acompanha o saldo de lá)
+              </label>
+              <label className="campo">SALDO INICIAL (R$), usado só se NÃO espelhar<input name="saldo" inputMode="decimal" defaultValue="100" /></label>
+              <div><button className="btn" type="submit">CRIAR CONTA</button></div>
             </form>
           </div>
         </main>
@@ -46,6 +49,19 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
 
   const [movs, ativos] = await Promise.all([carregarMovimentos(supabase, conta.id), ativosNegociaveis(supabase)]);
   const est = aplicar(movs);
+  let reserva: ReservaRockefeller | null = null;
+  let erroReserva: string | null = null;
+  if (conta.espelhaReserva) {
+    try {
+      reserva = await lerReservaRockefeller(supabase);
+    } catch (e) {
+      erroReserva = e instanceof Error ? e.message : "Não consegui ler a reserva.";
+    }
+  }
+  let plano: ReturnType<typeof planejarSincronia> | null = null;
+  if (reserva) {
+    try { plano = planejarSincronia(reserva.valor, est); } catch { plano = null; }
+  }
   const precos = await ultimosPrecos(supabase, [...ativos.map((a) => a.id), ...Object.keys(est.posicoes)]);
   const aval = avaliar(est, Object.fromEntries(Object.entries(precos).map(([k, v]) => [k, v.valor])));
   const travaAtiva = est.aportado > 0 && aval.patrimonio <= est.aportado * (1 - conta.travaPerda);
@@ -70,6 +86,26 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
         {aviso}
         {travaAtiva && <div className="aviso-topo">Trava de perda ativa: o patrimônio está {nf(100 * conta.travaPerda, 0)}% ou mais abaixo do aportado. Novas compras estão bloqueadas.</div>}
         {aval.semPreco.length > 0 && <div className="aviso-topo">Sem preço salvo para: {aval.semPreco.join(", ")}. Estão contados pelo custo. Rode a análise no Painel.</div>}
+
+        {conta.espelhaReserva && (
+          <div className="card">
+            <h2>Espelho da reserva de emergência (Rockefeller)</h2>
+            {erroReserva ? <p className="vazio">{erroReserva}</p> : !reserva ? <p className="vazio">Não encontrei os dados do Rockefeller para este usuário.</p> : (
+              <div className="linha" style={{ justifyContent: "space-between" }}>
+                <p className="sub" style={{ margin: 0 }}>
+                  Reserva hoje no Rockefeller: <b>{reais(reserva.valor, 2)}</b>
+                  {reserva.atualizadoEm ? <> (atualizada em {horaBr(reserva.atualizadoEm)})</> : null}. Já espelhado aqui: <b>{reais(aval.aportado, 2)}</b>.{" "}
+                  {plano?.aviso ? <span className="neg">{plano.aviso}</span>
+                    : plano?.tipo === "deposito" ? <>Faltam entrar <b className="pos">{reais(plano.valor, 2)}</b>.</>
+                    : plano?.tipo === "retirada" ? <>Vão sair <b className="neg">{reais(plano.valor, 2)}</b>.</>
+                    : <>Está igual.</>}
+                </p>
+                <form action={sincronizarReserva}><input type="hidden" name="conta" value={conta.id} /><button className="btn" type="submit">SINCRONIZAR</button></form>
+              </div>
+            )}
+            <p className="sub">Só leitura: o Trader Bit nunca altera nada no Rockefeller. Este saldo é fictício e serve para ver como a sua reserva poderia render investida.</p>
+          </div>
+        )}
 
         <div className="kpis">
           <div className="kpi"><span>PATRIMÔNIO</span><b>{reais(aval.patrimonio, 2)}</b></div>
@@ -131,11 +167,13 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
               <button className="btn" type="submit">APORTAR AGORA</button>
               <p className="sub">Só um DCA por ativo a cada mês. Se clicar duas vezes, a segunda é recusada. Tudo entra junto ou nada entra.</p>
             </form>
-            <form action={depositar} className="linha" style={{ marginTop: 14 }}>
-              <input type="hidden" name="conta" value={conta.id} />
-              <label className="campo">ADICIONAR SALDO FICTÍCIO (R$)<input name="valor" inputMode="decimal" placeholder="100,00" required /></label>
-              <button className="btn mini" type="submit">ADICIONAR</button>
-            </form>
+            {!conta.espelhaReserva && (
+              <form action={depositar} className="linha" style={{ marginTop: 14 }}>
+                <input type="hidden" name="conta" value={conta.id} />
+                <label className="campo">ADICIONAR SALDO FICTÍCIO (R$)<input name="valor" inputMode="decimal" placeholder="100,00" required /></label>
+                <button className="btn mini" type="submit">ADICIONAR</button>
+              </form>
+            )}
           </div>
         </div>
 
@@ -156,6 +194,16 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
                 </tr>))}</tbody>
             </table></div>
           )}
+        </div>
+        <div className="card">
+          <h2>Excluir esta conta</h2>
+          <form action={excluirConta} className="linha">
+            <input type="hidden" name="conta" value={conta.id} />
+            <label className="chip" style={{ cursor: "pointer", padding: "8px 12px" }}>
+              <input type="checkbox" name="confirmo" value="1" required style={{ minWidth: 0 }} /> Entendo que isto apaga a conta e todos os movimentos dela (não dá para desfazer)
+            </label>
+            <button className="btn mini perigo" type="submit">EXCLUIR CONTA</button>
+          </form>
         </div>
         <p className="sub">Custos usados: cripto {nf(100 * custosDoTipo("cripto").taxa, 2)}% por lado, bolsa {nf(100 * custosDoTipo("etf").taxa, 2)}%; slippage 0,05%. Simulação: não é recomendação de investimento.</p>
       </main>

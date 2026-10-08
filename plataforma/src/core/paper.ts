@@ -20,7 +20,7 @@ export function custosDoTipo(tipo: string): Custos {
 }
 
 export type Movimento = {
-  tipo: "deposito" | "compra" | "venda";
+  tipo: "deposito" | "compra" | "venda" | "retirada";
   ativoId?: string | null;
   quantidade?: number | null;
   precoExec?: number | null;
@@ -99,7 +99,8 @@ export function aplicar(movs: Movimento[]): Estado {
   for (const m of movs) {
     est.caixa += m.caixaDelta;
     est.taxasPagas += m.taxa;
-    if (m.tipo === "deposito") {
+    if (m.tipo === "deposito" || m.tipo === "retirada") {
+      // retirada tem caixaDelta negativo: reduz o aportado, então o resultado continua honesto
       est.aportado += m.caixaDelta;
       continue;
     }
@@ -218,3 +219,27 @@ export const periodoDca = (agora: Date): string => {
   const br = new Date(agora.getTime() - 3 * 3_600_000);
   return br.toISOString().slice(0, 7);
 };
+
+export type PlanoSincronia = { tipo: "deposito" | "retirada" | null; valor: number; aviso?: string };
+
+/**
+ * Compara a reserva de emergência (saldo real no Rockefeller) com o que a conta de teste já recebeu
+ * (`aportado`) e decide o que lançar para igualar. Retirada só sai do caixa livre: se a reserva caiu mais do
+ * que o caixa, o excedente é recusado (seria preciso vender posições antes) e a conta fica sem mexer.
+ */
+export function planejarSincronia(reserva: number, est: Estado): PlanoSincronia {
+  if (!Number.isFinite(reserva) || reserva < 0) throw new ErroOrdem("Reserva inválida no Rockefeller.");
+  const alvo = arred(reserva, 2);
+  const dif = arred(alvo - est.aportado, 2);
+  if (dif === 0) return { tipo: null, valor: 0 };
+  if (dif > 0) return { tipo: "deposito", valor: dif };
+  const saque = -dif;
+  if (saque > est.caixa + 1e-9) {
+    return {
+      tipo: null,
+      valor: 0,
+      aviso: `A reserva caiu R$ ${saque.toFixed(2).replace(".", ",")}, mas só há R$ ${Math.max(0, est.caixa).toFixed(2).replace(".", ",")} em caixa. Venda posições antes de sincronizar.`,
+    };
+  }
+  return { tipo: "retirada", valor: saque };
+}
