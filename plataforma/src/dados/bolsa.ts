@@ -33,6 +33,30 @@ export async function baixarBrapi(ticker: string, anos: number, f: FetchLike, to
   return parseBrapi(await r.json());
 }
 
+/** Cotação atual (com atraso, no plano grátis) de um ticker: GET /api/quote/{ticker} sem `range`. */
+export const urlCotacaoBrapi = (ticker: string) => `https://brapi.dev/api/quote/${encodeURIComponent(ticker)}`;
+
+export type PrecoAtualBrapi = { preco: number; hora: string | null };
+
+/** Lê `results[0].regularMarketPrice` e `regularMarketTime` (aceita epoch em segundos ou texto ISO). */
+export function parseCotacaoBrapi(dados: unknown): PrecoAtualBrapi {
+  const r = (dados as { results?: { regularMarketPrice?: unknown; regularMarketTime?: unknown }[] })?.results?.[0];
+  if (!r) throw new ErroFonte("brapi", "resposta sem 'results' (token inválido, ticker inexistente ou limite do plano?)");
+  const preco = Number(r.regularMarketPrice);
+  if (!Number.isFinite(preco) || preco <= 0) throw new ErroFonte("brapi", "cotação sem 'regularMarketPrice' válido");
+  const t = r.regularMarketTime;
+  let hora: string | null = null;
+  if (typeof t === "number" && Number.isFinite(t)) hora = new Date((t < 1e12 ? t * 1000 : t)).toISOString();
+  else if (typeof t === "string" && !Number.isNaN(Date.parse(t))) hora = new Date(t).toISOString();
+  return { preco, hora };
+}
+
+export async function baixarCotacaoBrapi(ticker: string, f: FetchLike, token?: string): Promise<PrecoAtualBrapi> {
+  const r = await f(urlCotacaoBrapi(ticker), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!r.ok) throw new ErroFonte("brapi", `${ticker}: HTTP ${r.status}`);
+  return parseCotacaoBrapi(await r.json());
+}
+
 /* ------------------------------ Yahoo Finance (reserva, não oficial) ------------------------------ */
 export const urlYahoo = (ticker: string, anos: number) =>
   `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${Math.max(1, Math.ceil(anos) + 1)}y&interval=1d`;

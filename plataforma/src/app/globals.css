@@ -66,3 +66,21 @@ input:focus,select:focus{outline:2px solid var(--gold)}
 .kpi b{font-family:var(--mono);font-size:17px;color:var(--gold2);font-weight:600}
 .kpi b small{font-size:11px;font-weight:500}
 small{font-size:11px}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-bottom:16px}
+.tile{position:relative;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--edge);padding:14px 16px;transition:border-color .3s,box-shadow .3s}
+.tile:hover{border-color:var(--edge2)}
+.tile-topo{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-size:12px}
+.tile-topo b{font-family:var(--serif);font-size:20px;color:var(--gold2);letter-spacing:.06em}
+.tile-topo .mut{font-size:11px;text-align:right}
+.tile-preco{font-family:var(--mono);font-size:22px;color:var(--tx);margin:8px 0 2px;font-weight:600}
+.tile-linha{font-family:var(--mono);font-size:12.5px;min-height:18px}
+.tile-rodape{font-size:10.5px;letter-spacing:.04em;margin-top:6px}
+.spark{width:100%;height:40px;margin-top:6px;display:block}
+.flash-up{animation:flashUp .7s ease-out}
+.flash-down{animation:flashDown .7s ease-out}
+@keyframes flashUp{0%{box-shadow:0 0 0 1px var(--up),0 0 22px rgba(46,229,157,.35);border-color:var(--up)}100%{box-shadow:none}}
+@keyframes flashDown{0%{box-shadow:0 0 0 1px var(--down),0 0 22px rgba(255,77,94,.35);border-color:var(--down)}100%{box-shadow:none}}
+.pulso{display:inline-block;animation:pulso 1.4s ease-in-out infinite}
+@keyframes pulso{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.flash-up,.flash-down,.pulso{animation:none}}

@@ -79,3 +79,9 @@ export async function lerReservaRockefeller(db: Db): Promise<ReservaRockefeller 
   }
   return { valor: v, atualizadoEm: (data.updated_at as string | null) ?? null };
 }
+
+/** Últimos `n` fechamentos (mais antigo primeiro), para o gráfico. */
+export async function historicoRecente(db: Db, ativoId: string, n = 90): Promise<number[]> {
+  const { data } = await db.from("precos_diarios").select("valor").eq("ativo_id", ativoId).order("data", { ascending: false }).limit(n);
+  return (data ?? []).map((r) => Number(r.valor)).reverse();
+}

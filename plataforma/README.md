@@ -11,6 +11,8 @@ Plataforma web de testes de investimento (dinheiro fictício). Veja `PLANO.md` p
   resultado, DCA do mês (um por ativo e mês) e travas (saldo, venda a descoberto, trava de perda).
 - **Conta espelhada:** o saldo fictício acompanha a reserva de emergência do Rockefeller (somente leitura) pelo botão Sincronizar.
 - Excluir conta (com confirmação) pela própria tela.
+- **Mercado ao vivo (aba MERCADO):** cripto em tempo real direto da Binance (WebSocket, com reconexão e consulta de reserva a cada 5 s),
+  bolsa com atraso de ~30 min via brapi (cache de 5 min), gráfico de 90 dias e o patrimônio da conta de teste recalculado a cada preço.
 
 ## Rodar no seu PC
 ```
