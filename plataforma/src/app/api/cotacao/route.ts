@@ -29,20 +29,28 @@ export async function GET(req: Request) {
   const permitidos = new Map((ativos ?? []).filter((a) => a.tipo !== "cripto" && a.tipo !== "cambio" && a.tipo !== "renda_fixa").map((a) => [a.id as string, a.referencia as string]));
 
   const agora = Date.now();
-  const cotacoes = await Promise.all(
-    pedidos.map(async (id) => {
-      const ticker = permitidos.get(id);
-      if (!ticker) return { id, ok: false as const, erro: "ativo não cadastrado ou sem cotação ao vivo" };
-      const c = cache.get(ticker);
-      if (c && agora - c.em < TTL_MS) return { id, ok: true as const, preco: c.preco, hora: c.hora, buscadoEm: new Date(c.em).toISOString(), cache: true };
-      try {
-        const r = await baixarCotacaoBrapi(ticker, fetch, process.env.BRAPI_TOKEN);
-        cache.set(ticker, { em: agora, preco: r.preco, hora: r.hora });
-        return { id, ok: true as const, preco: r.preco, hora: r.hora, buscadoEm: new Date(agora).toISOString(), cache: false };
-      } catch (e) {
-        return { id, ok: false as const, erro: e instanceof Error ? e.message : String(e) };
-      }
-    }),
-  );
+  // Um ticker por vez: o plano grátis da brapi é de 1 ticker por chamada e pode recusar pedidos simultâneos.
+  const cotacoes = [];
+  for (const id of pedidos) {
+    const ticker = permitidos.get(id);
+    if (!ticker) {
+      cotacoes.push({ id, ok: false as const, erro: "ativo não cadastrado ou sem cotação ao vivo" });
+      continue;
+    }
+    const c = cache.get(ticker);
+    if (c && agora - c.em < TTL_MS) {
+      cotacoes.push({ id, ok: true as const, preco: c.preco, hora: c.hora, buscadoEm: new Date(c.em).toISOString(), cache: true });
+      continue;
+    }
+    try {
+      const r = await baixarCotacaoBrapi(ticker, fetch, process.env.BRAPI_TOKEN);
+      cache.set(ticker, { em: Date.now(), preco: r.preco, hora: r.hora });
+      cotacoes.push({ id, ok: true as const, preco: r.preco, hora: r.hora, buscadoEm: new Date().toISOString(), cache: false });
+    } catch (e) {
+      const erro = e instanceof Error ? e.message : String(e);
+      console.error(`cotacao ${id} falhou: ${erro}`); // vai para o log da Vercel (a resposta é 200, então sem isto o erro sumia)
+      cotacoes.push({ id, ok: false as const, erro });
+    }
+  }
   return Response.json({ cotacoes });
 }

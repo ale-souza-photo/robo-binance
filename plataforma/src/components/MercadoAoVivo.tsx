@@ -141,6 +141,8 @@ export default function MercadoAoVivo({ itens, conta }: { itens: ItemMercado[]; 
   useEffect(() => {
     if (!chaveBolsa) return;
     let fechado = false;
+    let falhas = 0;
+    let timerRetry: ReturnType<typeof setTimeout> | undefined;
     const buscar = async () => {
       try {
         const r = await fetch(`/api/cotacao?t=${chaveBolsa}`, { cache: "no-store" });
@@ -149,13 +151,19 @@ export default function MercadoAoVivo({ itens, conta }: { itens: ItemMercado[]; 
         if (fechado) return;
         const erros = j.cotacoes.filter((c) => !c.ok).map((c) => `${c.id}: ${c.erro}`);
         setErroBolsa(erros.length ? erros.join(" | ") : null);
+        // falhou: tenta de novo em 30 s (até 5 vezes seguidas); deu certo: volta ao ritmo normal
+        falhas = erros.length ? falhas + 1 : 0;
+        if (erros.length && falhas <= 5) timerRetry = setTimeout(buscar, 30_000);
         setPrecos((p) => {
           const n = { ...p };
           for (const c of j.cotacoes) if (c.ok && c.preco) n[c.id] = { preco: c.preco, abertura: null, em: Date.parse(c.buscadoEm ?? "") || Date.now(), hora: c.hora };
           return n;
         });
       } catch (e) {
-        if (!fechado) setErroBolsa(e instanceof Error ? e.message : "falha ao buscar as cotações da bolsa");
+        if (fechado) return;
+        setErroBolsa(e instanceof Error ? e.message : "falha ao buscar as cotações da bolsa");
+        falhas += 1;
+        if (falhas <= 5) timerRetry = setTimeout(buscar, 30_000);
       }
     };
     void buscar();
@@ -163,6 +171,7 @@ export default function MercadoAoVivo({ itens, conta }: { itens: ItemMercado[]; 
     return () => {
       fechado = true;
       clearInterval(t);
+      if (timerRetry) clearTimeout(timerRetry);
     };
   }, [chaveBolsa]);
 
@@ -186,7 +195,7 @@ export default function MercadoAoVivo({ itens, conta }: { itens: ItemMercado[]; 
         <span className={`chip ${status === "ao vivo" ? "ok" : status === "offline" ? "erro" : "parcial"}`}>
           <span className={status === "ao vivo" ? "pulso" : ""}>●</span> CRIPTO: {rotulo[status]}
         </span>
-        {erroBolsa && <span className="chip parcial" title={erroBolsa}>BOLSA: cotação indisponível, mostrando o último fechamento</span>}
+        {erroBolsa && <span className="chip parcial" title={erroBolsa}>BOLSA: cotação indisponível, mostrando o último fechamento ({erroBolsa.slice(0, 90)})</span>}
       </div>
 
       {aval && conta && (
