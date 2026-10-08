@@ -1,3 +1,4 @@
+import { baixarCotacaoBrapi } from "@/dados/bolsa";
 import { ATIVOS_PADRAO, carregarSerie } from "@/dados/fontes";
 import { statusEnv } from "@/lib/config";
 
@@ -22,5 +23,17 @@ export async function GET() {
       resultados.push({ ativo: def.id, ok: false, erro: e instanceof Error ? e.message : String(e), ms: Date.now() - ini });
     }
   }
-  return Response.json({ regiao: process.env.VERCEL_REGION ?? "local", variaveis: statusEnv(), resultados });
+
+  // Cotação atual da bolsa (brapi, com atraso): o formato real ainda não foi confirmado, então testamos aqui.
+  const cotacoes = [];
+  for (const t of ["BOVA11", "IVVB11"]) {
+    const ini = Date.now();
+    try {
+      const c = await baixarCotacaoBrapi(t, fetch, process.env.BRAPI_TOKEN);
+      cotacoes.push({ ticker: t, ok: true, preco: c.preco, hora: c.hora, ms: Date.now() - ini });
+    } catch (e) {
+      cotacoes.push({ ticker: t, ok: false, erro: e instanceof Error ? e.message : String(e), ms: Date.now() - ini });
+    }
+  }
+  return Response.json({ regiao: process.env.VERCEL_REGION ?? "local", variaveis: statusEnv(), resultados, cotacoes });
 }
