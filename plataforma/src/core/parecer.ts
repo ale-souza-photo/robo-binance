@@ -40,7 +40,7 @@ export type Citacao = { texto: string; autor: string; fonte: string; tipo: "docu
 export type Link = { rotulo: string; url: string };
 
 export type Parecer = {
-  versao: 1;
+  versao: 1 | 2;
   geradoEm: string;
   dadosAte: string | null;
   estado: Estado;
