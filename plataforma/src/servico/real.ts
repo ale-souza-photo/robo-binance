@@ -64,3 +64,36 @@ export function criarDependencias(db: SupabaseClient<any, any, any>, brapiToken?
     agora: () => new Date(),
   };
 }
+
+import type { DependenciasParecer } from "@/servico/parecer-cron";
+import type { StatsAtivo } from "@/core/parecer";
+
+/** Dependências reais do parecer: lê `rockefeller_data` (só leitura) e grava em `rockefeller_parecer` (tabela própria). */
+export function criarDependenciasParecer(db: SupabaseClient<any, any, any>): DependenciasParecer {
+  return {
+    async lerRockefeller() {
+      const { data, error } = await db.schema("public").from("rockefeller_data").select("user_id,data").limit(1).maybeSingle();
+      if (error) throw new Error(`rockefeller: ${error.message}`);
+      return data ? { userId: data.user_id as string, data: data.data } : null;
+    },
+    async lerAtivos() {
+      const { data, error } = await db.from("ativos").select("id,nome,tipo").eq("ativo", true).order("id");
+      if (error) throw new Error(`banco: ${error.message}`);
+      return (data ?? []).map((a) => ({ id: a.id as string, nome: a.nome as string, tipo: a.tipo as string }));
+    },
+    async lerUltimaAnalise() {
+      const { data, error } = await db.from("analises").select("resultado,periodo_fim").in("status", ["ok", "parcial"])
+        .order("executado_em", { ascending: false }).limit(1);
+      if (error) throw new Error(`banco: ${error.message}`);
+      const r = data?.[0];
+      const stats = (r?.resultado as { stats?: Record<string, StatsAtivo> } | null)?.stats;
+      return r && stats ? { stats, periodoFim: (r.periodo_fim as string | null) ?? null } : null;
+    },
+    async salvarParecer(userId, p) {
+      const { error } = await db.schema("public").from("rockefeller_parecer")
+        .upsert({ user_id: userId, data: p, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (error) throw new Error(`parecer: ${error.message}`);
+    },
+    agora: () => new Date(),
+  };
+}
