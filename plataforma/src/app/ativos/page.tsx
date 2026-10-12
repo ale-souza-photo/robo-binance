@@ -1,4 +1,5 @@
 import { Cabecalho } from "@/components/Cabecalho";
+import { DestaquesBdr } from "@/components/DestaquesBdr";
 import { adicionarAtivo, alternarAtivo, carregarPadrao, removerAtivo } from "@/app/acoes";
 import { clienteServidor } from "@/lib/supabase/servidor";
 
@@ -34,6 +35,7 @@ export default async function Ativos({ searchParams }: { searchParams: Promise<{
             <button className="btn" type="submit">ADICIONAR</button>
           </form>
         </div>
+        <DestaquesBdr />
         <div className="card">
           <h2>Cadastrados ({lista.length})</h2>
           {lista.length === 0 ? <p className="vazio">Nenhum ativo ainda.</p> : (

@@ -9,6 +9,7 @@ const ITENS = [
   { href: "/mercado", rotulo: "MERCADO", chave: "mercado" },
   { href: "/sinais", rotulo: "SINAIS", chave: "sinais" },
   { href: "/carteira", rotulo: "CARTEIRA", chave: "carteira" },
+  { href: "/caixinhas", rotulo: "CAIXINHAS", chave: "caixinhas" },
 ] as const;
 
 export function Cabecalho({ ativa }: { ativa: (typeof ITENS)[number]["chave"] }) {
