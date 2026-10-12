@@ -199,41 +199,32 @@ function somarCarteira(blocos: Bloco[]): Cenarios | null {
 export function gerarParecer(e: EntradaParecer): Parecer {
   const reserva = Math.max(0, e.reserva);
   const meta = r2(Math.max(0, e.gastoMensal) * e.metaMeses);
-  const falta = r2(Math.max(0, meta - reserva));
-  const investivel = r2(Math.max(0, reserva - meta));
-  const estado: Estado = reserva <= 0 ? "sem_reserva" : reserva < meta ? "abaixo_meta" : investivel < 50 ? "no_limite" : "pode_investir";
-  const mesesParaMeta = falta > 0 && e.aporteMensal > 0 ? Math.ceil(falta / e.aporteMensal) : null;
+  const lacuna = r2(Math.max(0, meta - reserva));
+  // Regra do dono: investe-se o saldo da reserva de hoje, inteiro. A meta de meses vira só aviso de risco.
+  const investivel = r2(reserva);
+  const estado: Estado = reserva <= 0 ? "sem_reserva" : investivel < 50 ? "no_limite" : "pode_investir";
+  const mesesParaMeta = lacuna > 0 && e.aporteMensal > 0 ? Math.ceil(lacuna / e.aporteMensal) : null;
 
+  // `falta` sai sempre 0: a interface trata falta>0 como "bloqueado". A lacuna da meta vai no texto.
   const base: Parecer = {
-    versao: 1, geradoEm: e.agora.toISOString(), dadosAte: e.dadosAte ?? null, estado, perfil: "moderado",
-    reserva: r2(reserva), gastoMensal: r2(e.gastoMensal), metaMeses: e.metaMeses, meta, falta, investivel,
+    versao: 2, geradoEm: e.agora.toISOString(), dadosAte: e.dadosAte ?? null, estado, perfil: "moderado",
+    reserva: r2(reserva), gastoMensal: r2(e.gastoMensal), metaMeses: e.metaMeses, meta, falta: 0, investivel,
     titulo: "", texto: [], mesesParaMeta, blocos: [], carteira: null, citacao: null, links: LINKS, aviso: AVISO,
   };
 
-  if (estado === "sem_reserva" || estado === "abaixo_meta" || estado === "no_limite") {
+  if (estado === "sem_reserva" || estado === "no_limite") {
     base.citacao = escolherCitacao(e.agora);
     if (estado === "sem_reserva") {
       base.titulo = "Primeiro a muralha, depois o ouro.";
       base.texto = [
-        "Você ainda não tem reserva guardada. Hoje, investir seria apostar sem rede de proteção.",
-        meta > 0
-          ? `Sua meta é ${e.metaMeses} meses de gastos: ${brl(meta)}. Comece pelo primeiro passo, mesmo que pequeno.`
-          : "Registre seus gastos no Rockefeller para eu calcular sua meta de reserva.",
-      ];
-    } else if (estado === "abaixo_meta") {
-      base.titulo = "Ainda não é hora de investir. É hora de blindar.";
-      base.texto = [
-        `Você guardou ${brl(reserva)} de ${brl(meta)} (${Math.round((reserva / meta) * 100)}% da meta de ${e.metaMeses} meses). Faltam ${brl(falta)}.`,
-        "Enquanto a meta não fecha, o dinheiro fica em ativo seguro e de resgate rápido: Tesouro Selic ou CDB com liquidez diária pagando 100% do CDI ou mais.",
-        mesesParaMeta
-          ? `No ritmo do seu plano (${brl(e.aporteMensal)} por mês), a meta fecha em cerca de ${mesesParaMeta} ${mesesParaMeta === 1 ? "mês" : "meses"}.`
-          : "Este mês não há sobra para a reserva. Reveja os gastos do Rockefeller antes de pensar em investir.",
+        "Você ainda não tem saldo na reserva. Sem capital, não há o que investir hoje.",
+        "Guarde o primeiro valor, mesmo pequeno, em Tesouro Selic ou CDB de liquidez diária. Volto amanhã às 10h.",
       ];
     } else {
-      base.titulo = "Reserva completa. Falta sobra para investir.";
+      base.titulo = "Saldo pequeno demais para dividir.";
       base.texto = [
-        `Sua reserva de ${brl(reserva)} cobre a meta de ${e.metaMeses} meses (${brl(meta)}). Parabéns: a muralha está de pé.`,
-        `O que passa da meta é só ${brl(investivel)} — pouco demais para dividir em ativos. Deixe crescer e volte aqui.`,
+        `Sua reserva de hoje é ${brl(reserva)}. Abaixo de R$ 50 não compensa dividir em ativos (taxas e mínimos comem o resultado).`,
+        "Deixe crescer em Tesouro Selic ou CDB de liquidez diária e volte aqui.",
       ];
     }
     base.links = LINKS.filter((l) => /Tesouro|Banco Central|FGC|CVM/.test(l.rotulo));
@@ -244,14 +235,16 @@ export function gerarParecer(e: EntradaParecer): Parecer {
   const carteira = somarCarteira(blocos);
   base.blocos = blocos;
   base.carteira = carteira;
-  base.titulo = "Reserva blindada. Capital livre para trabalhar.";
+  base.titulo = "Saldo da reserva de hoje: capital pronto para trabalhar.";
   base.texto = [
-    `Sua reserva é ${brl(reserva)}. A meta de ${e.metaMeses} meses (${brl(meta)}) fica intocada, em Tesouro Selic ou CDB de liquidez diária.`,
-    `O excedente de ${brl(investivel)} pode trabalhar. Para o perfil moderado, a divisão abaixo mistura base segura com crescimento.`,
+    `Seu saldo na reserva hoje é ${brl(reserva)}. Pelo seu critério, esse é o valor que o Analista distribui, para o perfil moderado.`,
+    lacuna > 0
+      ? `Atenção: investir tudo deixa a reserva abaixo da meta de ${e.metaMeses} meses de gastos (${brl(meta)}). Se surgir uma emergência, renda variável e cripto podem estar em queda na hora do resgate. Por isso a base de renda fixa pesa 50% e o resto fica em parcelas.`
+      : `Sua reserva já cobre a meta de ${e.metaMeses} meses (${brl(meta)}), então a folga para assumir risco é maior.`,
     carteira
       ? `Olhando 12 meses a partir de janelas do passado: no cenário adverso a carteira ${carteira.adverso.valor < 0 ? "perderia" : "ganharia"} ${brl(Math.abs(carteira.adverso.valor))} (${pct1(carteira.adverso.pct)}); no base, ${brl(carteira.base.valor)} (${pct1(carteira.base.pct)}); no favorável, ${brl(carteira.favoravel.valor)} (${pct1(carteira.favoravel.pct)}).`
       : "Ainda não há histórico suficiente nos ativos para projetar 12 meses.",
-    "Invista aos poucos, em parcelas mensais, e nunca mexa na reserva para isso.",
+    "Entre aos poucos, em parcelas mensais, e só com o que você não vai precisar nos próximos meses.",
   ];
   return base;
 }

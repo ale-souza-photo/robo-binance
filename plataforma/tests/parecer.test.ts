@@ -20,24 +20,21 @@ describe("parecer", () => {
     expect(p.citacao?.texto).toBeTruthy();
     expect(p.meta).toBe(3000);
   });
-  it("abaixo da meta: calcula falta e prazo", () => {
+  it("reserva abaixo da meta: investe o saldo inteiro e avisa o risco", () => {
     const p = gerarParecer({ ...base, reserva: 1200 });
-    expect(p.estado).toBe("abaixo_meta");
-    expect(p.falta).toBe(1800);
-    expect(p.mesesParaMeta).toBe(6);
-    expect(p.investivel).toBe(0);
-    expect(p.blocos).toEqual([]);
+    expect(p.estado).toBe("pode_investir");
+    expect(p.investivel).toBe(1200);
+    expect(p.falta).toBe(0);
+    expect(p.blocos.reduce((a, b) => a + b.investir, 0)).toBeCloseTo(1200, 2);
+    expect(p.texto.join(" ")).toContain("abaixo da meta");
   });
-  it("sem sobra no mês: sem prazo", () => {
-    expect(gerarParecer({ ...base, reserva: 1200, aporteMensal: 0 }).mesesParaMeta).toBeNull();
-  });
-  it("no limite: sobra pequena não vira carteira", () => {
-    const p = gerarParecer({ ...base, reserva: 3020 });
+  it("saldo pequeno (<R$50) não vira carteira", () => {
+    const p = gerarParecer({ ...base, reserva: 30 });
     expect(p.estado).toBe("no_limite");
     expect(p.blocos).toEqual([]);
   });
-  it("pode investir: divide só o excedente, pesos moderados e soma fecha", () => {
-    const p = gerarParecer({ ...base, reserva: 13000 });
+  it("pode investir: divide o saldo todo, pesos moderados e soma fecha", () => {
+    const p = gerarParecer({ ...base, reserva: 10000 });
     expect(p.estado).toBe("pode_investir");
     expect(p.investivel).toBe(10000);
     const por = Object.fromEntries(p.blocos.map((b) => [b.categoria, b.investir]));
@@ -48,12 +45,12 @@ describe("parecer", () => {
     expect(p.citacao).toBeNull();
   });
   it("divide igualmente entre ativos da mesma categoria", () => {
-    const p = gerarParecer({ ...base, reserva: 13000, ativos: [...base.ativos, { id: "AAPL34", nome: "Apple", tipo: "bdr" }], stats: { ...base.stats, AAPL34: stats(-0.3, 0.1, 0.4) } });
+    const p = gerarParecer({ ...base, reserva: 10000, ativos: [...base.ativos, { id: "AAPL34", nome: "Apple", tipo: "bdr" }], stats: { ...base.stats, AAPL34: stats(-0.3, 0.1, 0.4) } });
     const ext = p.blocos.find((b) => b.categoria === "exterior")!;
     expect(ext.ativos.map((a) => a.investir)).toEqual([1000, 1000]);
   });
   it("ativo sem dados fica de fora (exceto renda fixa)", () => {
-    const p = gerarParecer({ ...base, reserva: 13000, stats: { CDI: base.stats.CDI } });
+    const p = gerarParecer({ ...base, reserva: 10000, stats: { CDI: base.stats.CDI } });
     expect(p.blocos.map((b) => b.categoria)).toEqual(["renda_fixa"]);
     expect(p.blocos[0].investir).toBe(10000);
   });
