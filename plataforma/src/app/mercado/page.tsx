@@ -1,4 +1,5 @@
 import { Cabecalho } from "@/components/Cabecalho";
+import { DestaquesBdr } from "@/components/DestaquesBdr";
 import MercadoAoVivo, { type ContaMercado, type ItemMercado } from "@/components/MercadoAoVivo";
 import { simboloBinance } from "@/core/ao-vivo";
 import { aplicar } from "@/core/paper";
@@ -48,6 +49,7 @@ export default async function Mercado() {
           </div>
         </div>
         {itens.length === 0 ? <div className="card"><p className="vazio">Nenhum ativo cadastrado. Vá em ATIVOS e carregue o conjunto padrão.</p></div> : <MercadoAoVivo itens={itens} conta={conta} />}
+        <DestaquesBdr />
       </main>
     </>
   );

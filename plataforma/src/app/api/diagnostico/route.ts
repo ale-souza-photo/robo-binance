@@ -1,5 +1,6 @@
 import { baixarCotacaoBrapi } from "@/dados/bolsa";
 import { ATIVOS_PADRAO, carregarSerie } from "@/dados/fontes";
+import { lerListaBdr, urlListaBdr } from "@/core/destaques";
 import { statusEnv } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -35,5 +36,17 @@ export async function GET() {
       cotacoes.push({ ticker: t, ok: false, erro: e instanceof Error ? e.message : String(e), ms: Date.now() - ini });
     }
   }
-  return Response.json({ regiao: process.env.VERCEL_REGION ?? "local", variaveis: statusEnv(), resultados, cotacoes });
+  // Lista de BDRs (destaques do dia): confirma se o plano grátis entrega a lista e no formato esperado.
+  let bdrs: { ok: boolean; http?: number; itens?: number; exemplo?: string[]; erro?: string } = { ok: false };
+  try {
+    const r = await fetch(urlListaBdr(), { headers: process.env.BRAPI_TOKEN ? { Authorization: `Bearer ${process.env.BRAPI_TOKEN}` } : {} });
+    if (!r.ok) bdrs = { ok: false, http: r.status, erro: (await r.text()).slice(0, 200) };
+    else {
+      const lista = lerListaBdr(await r.json());
+      bdrs = { ok: lista.length > 0, http: r.status, itens: lista.length, exemplo: lista.slice(0, 3).map((x) => x.ticker) };
+    }
+  } catch (e) {
+    bdrs = { ok: false, erro: e instanceof Error ? e.message : String(e) };
+  }
+  return Response.json({ regiao: process.env.VERCEL_REGION ?? "local", variaveis: statusEnv(), resultados, cotacoes, bdrs });
 }

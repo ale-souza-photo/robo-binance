@@ -1,3 +1,4 @@
+import { fraseResumo, type ResumoCaixinhas } from "@/core/caixinhas";
 import { aporteMensalDe, gastoMensalDe, gerarParecer, type AtivoInfo, type Parecer, type StatsAtivo } from "@/core/parecer";
 
 export const META_MESES = 3;
@@ -9,6 +10,8 @@ export type DependenciasParecer = {
   lerRockefeller(): Promise<DadosRockefeller | null>;
   lerAtivos(): Promise<AtivoInfo[]>;
   lerUltimaAnalise(): Promise<UltimaAnalise>;
+  /** Opcional: resumo das caixinhas de renda fixa. Se falhar ou faltar, o parecer sai sem elas. */
+  lerCaixinhas?(): Promise<ResumoCaixinhas>;
   salvarParecer(userId: string, p: Parecer): Promise<void>;
   agora(): Date;
 };
@@ -44,6 +47,16 @@ export async function rodarParecer(d: DependenciasParecer): Promise<SaidaParecer
     agora,
     dadosAte: analise?.periodoFim ?? null,
   });
-  await d.salvarParecer(rk.userId, parecer);
+  let final: Parecer = parecer;
+  if (d.lerCaixinhas) {
+    try {
+      const resumo = await d.lerCaixinhas();
+      const frase = fraseResumo(resumo);
+      if (frase) final = { ...parecer, texto: [...parecer.texto, frase], caixinhas: resumo };
+    } catch {
+      // caixinhas são um extra: se der erro, o parecer do dia sai igual ao de sempre
+    }
+  }
+  await d.salvarParecer(rk.userId, final);
   return { status: "ok", estado: parecer.estado };
 }

@@ -1,3 +1,5 @@
+import type { ResumoCaixinhas } from "@/core/caixinhas";
+
 /**
  * O "Analista" do Rockefeller: transforma reserva + gastos + estatísticas históricas em um parecer em português simples.
  * Função pura (sem rede, sem banco, sem IA): mesma entrada, mesma saída. Roda de graça todo dia.
@@ -59,6 +61,8 @@ export type Parecer = {
   citacao: Citacao | null;
   links: Link[];
   aviso: string;
+  /** Resumo das caixinhas de renda fixa (digitadas no Trader Bit). Ausente se não houver. */
+  caixinhas?: ResumoCaixinhas;
 };
 
 const PESOS: Record<Categoria, number> = { renda_fixa: 0.5, exterior: 0.2, brasil: 0.2, cambio: 0.05, cripto: 0.05 };
