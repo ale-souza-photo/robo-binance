@@ -17,3 +17,9 @@ O bloco **só lê**; não grava nada no Rockefeller.
 ## Se não aparecer
 - Confira se a sua sessão no Rockefeller está entrada (a mesma do botão de sincronizar).
 - O bloco usa `token()`, `SB` e `SBK` do Rockefeller (os mesmos da sincronização). Se você renomeou algum deles, me avise.
+
+## Publicado (13/10/2026)
+O painel foi publicado direto no Rockefeller, sem colar nada no `index.html`:
+- `deploy/caixinhas.js`: o painel (entra dentro do card do Analista, logo abaixo do veredito, com os dados `anaP.caixinhas`).
+- `deploy/analista.js`: carregador de 2 linhas; o Analista original foi mantido intacto como `analista-base.js`.
+- Para voltar à versão anterior: Vercel › rockefeller › Deployments › `dpl_3qjEgagHjPaPTZWv5pRjr1XfTMNc` › Promote.
