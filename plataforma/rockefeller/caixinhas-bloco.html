@@ -9,6 +9,7 @@
   </div>
   <div id="cxBarras"></div>
   <p class="cx-nota" id="cxNota"></p>
+  <p class="cx-erro" id="cxErro"></p>
 </div>
 <style>
 .cx h2{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -27,6 +28,8 @@
 .cx-fill{height:100%;transform-origin:left;background:linear-gradient(90deg,var(--gold2,#8f7640),var(--gold,#d4b36a));animation:cxgrow .9s cubic-bezier(.2,.8,.2,1) both}
 .cx-sub{display:flex;justify-content:space-between;gap:10px;margin-top:5px;font:500 11px var(--mono,monospace);color:var(--mut,#6f7e8a)}
 .cx-sub .cx-up{color:var(--ok,#3ddc97)}
+.cx-erro{margin:8px 0 0;font:500 11.5px var(--mono,monospace);color:var(--warn,#e8b94a)}
+.cx-erro:empty{display:none}
 .cx-nota{margin:8px 0 0;font-size:11.5px;line-height:1.6;color:var(--mut,#6f7e8a)}
 @keyframes cxgrow{from{transform:scaleX(0)}}
 @media(max-width:640px){.cx-kpis{grid-template-columns:repeat(2,1fr)}}
@@ -34,11 +37,19 @@
 </style>
 <script>
 (function(){
+  var URL_SB='https://pgdavlscoyzdkhgmedgn.supabase.co',KEY_SB='sb_publishable_asZ7xv5wHmj5tvKtwzxcOQ_r3gaaH3A';
   var brl=function(n){return n==null||!isFinite(n)?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})};
   var card=document.getElementById('cxCard');if(!card)return;
   function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+  function mostrar(v){card.hidden=!v;card.style.display=v?'':'none'}
+  function erro(msg){
+    // mostra o motivo na própria tela (em vez de sumir sem explicar)
+    document.getElementById('cxErro').textContent='Não consegui carregar as caixinhas: '+msg;
+    document.getElementById('cxBarras').textContent='';mostrar(true);
+    try{console.warn('[caixinhas]',msg)}catch(e){}}
   function pintar(cx,quando){
-    if(!cx||!cx.quantidade||!cx.itens||!cx.itens.length){card.hidden=true;return}
+    document.getElementById('cxErro').textContent='';
+    if(!cx||!cx.quantidade||!cx.itens||!cx.itens.length){mostrar(false);return}
     document.getElementById('cxTotal').textContent=brl(cx.total);
     document.getElementById('cxMes').textContent=cx.rendMes==null?'—':'+'+brl(cx.rendMes);
     document.getElementById('cxAno').textContent=cx.rendAno==null?'—':'+'+brl(cx.rendAno);
@@ -56,21 +67,27 @@
       lin.appendChild(topo);lin.appendChild(tr);lin.appendChild(sub);box.appendChild(lin)});
     var d=quando?new Date(quando):null;
     document.getElementById('cxNota').textContent='*Estimativa com o CDI de hoje'+(cx.cdiAnual!=null?' ('+(100*cx.cdiAnual).toFixed(2).replace('.',',')+'% ao ano)':'')+', antes do imposto de renda. Não é promessa. Atualizado '+(d&&!isNaN(d)?d.toLocaleDateString('pt-BR'):'—')+'. Para mudar, edite em Trader Bit › Caixinhas.';
-    card.hidden=false}
+    mostrar(true)}
+  // Acesso: usa as funções do Rockefeller se existirem; senão lê a sessão guardada no navegador (somente leitura, sem renovar).
+  async function pegarToken(){
+    if(typeof token==='function'){try{var t=await token();if(t)return t}catch(e){}}
+    try{var s=JSON.parse(localStorage.getItem('rockefeller_sess')||'null');if(s&&s.at&&(!s.exp||s.exp-30000>Date.now()))return s.at}catch(e){}
+    return null}
   var busy=false;
-  function carregar(){return carregarAsync()}
-  async function carregarAsync(){
-    if(busy||typeof token!=='function'||typeof SB==='undefined'||typeof SBK==='undefined')return Promise.resolve();
-    busy=true;
+  async function carregar(){
+    if(busy)return false;busy=true;
     try{
-      var at=await token();if(!at){card.hidden=true;return}
-      var r=await fetch(SB+'/rest/v1/rockefeller_parecer?select=data',{headers:{apikey:SBK,Authorization:'Bearer '+at}});
-      if(!r.ok){card.hidden=true;return}
+      var at=await pegarToken();
+      if(!at){erro('entre na sua conta do Rockefeller (Conta e backup) e recarregue a página.');return false}
+      var url=(typeof SB!=='undefined'?SB:URL_SB),key=(typeof SBK!=='undefined'?SBK:KEY_SB);
+      var r=await fetch(url+'/rest/v1/rockefeller_parecer?select=data',{headers:{apikey:key,Authorization:'Bearer '+at}});
+      if(!r.ok){erro('o servidor respondeu '+r.status+(r.status===401?' (sessão vencida: recarregue a página)':'')+'.');return false}
       var rows=await r.json(),p=rows[0]&&rows[0].data;
-      pintar(p&&p.caixinhas,p&&p.geradoEm)
-    }catch(e){card.hidden=true}finally{busy=false}}
+      if(!p){erro('ainda não há parecer gerado hoje.');return false}
+      pintar(p.caixinhas,p.geradoEm);return true
+    }catch(e){erro(String(e&&e.message||e));return false}finally{busy=false}}
   var tent=0;
-  function inicial(){carregar().then(function(){if(card.hidden&&++tent<4)setTimeout(inicial,3000)})}
+  function inicial(){carregar().then(function(ok){if(!ok&&++tent<4)setTimeout(inicial,3000)})}
   if(document.readyState==='complete')inicial();else window.addEventListener('load',inicial);
   window.addEventListener('focus',carregar);
   document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-t="invest"]');if(b)setTimeout(carregar,50)});
