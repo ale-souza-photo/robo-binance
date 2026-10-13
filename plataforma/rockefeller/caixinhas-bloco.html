@@ -1,0 +1,79 @@
+<!-- ===== CAIXINHAS (dados vindos do Trader Bit) · cole logo depois de <section class="tab" id="invest"> ===== -->
+<div class="card cx" id="cxCard" hidden>
+  <h2>Minhas caixinhas <span class="cx-tag">renda fixa · % do CDI</span></h2>
+  <div class="cx-kpis">
+    <div><span>TOTAL GUARDADO</span><b id="cxTotal">—</b></div>
+    <div><span>RENDE POR MÊS*</span><b id="cxMes" class="cx-up">—</b></div>
+    <div><span>RENDE POR ANO*</span><b id="cxAno" class="cx-up">—</b></div>
+    <div><span>CDI MÉDIO</span><b id="cxPct">—</b></div>
+  </div>
+  <div id="cxBarras"></div>
+  <p class="cx-nota" id="cxNota"></p>
+</div>
+<style>
+.cx h2{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cx-tag{font:500 10px var(--mono,monospace);letter-spacing:.12em;color:var(--mut,#6f7e8a);text-transform:uppercase}
+.cx-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:4px 0 16px}
+.cx-kpis div{border:1px solid var(--bd,#1a232c);background:rgba(8,11,15,.6);padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cx-kpis span{font:500 9.5px var(--mono,monospace);letter-spacing:.14em;color:var(--mut,#6f7e8a)}
+.cx-kpis b{font:600 17px var(--mono,monospace);color:var(--gold,#d4b36a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-kpis b.cx-up{color:var(--ok,#3ddc97)}
+.cx-lin{margin:0 0 14px}
+.cx-topo{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.cx-nome{font:600 14px var(--sans,sans-serif);color:var(--tx,#e6ebef);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-chip{font:600 10px var(--mono,monospace);letter-spacing:.08em;color:var(--gold,#d4b36a);border:1px solid var(--gold2,#8f7640);padding:2px 7px;margin-left:8px;white-space:nowrap}
+.cx-val{font:500 13px var(--mono,monospace);color:var(--tx,#e6ebef);white-space:nowrap}
+.cx-trilho{height:12px;background:rgba(255,255,255,.05);border:1px solid var(--bd,#1a232c);overflow:hidden}
+.cx-fill{height:100%;transform-origin:left;background:linear-gradient(90deg,var(--gold2,#8f7640),var(--gold,#d4b36a));animation:cxgrow .9s cubic-bezier(.2,.8,.2,1) both}
+.cx-sub{display:flex;justify-content:space-between;gap:10px;margin-top:5px;font:500 11px var(--mono,monospace);color:var(--mut,#6f7e8a)}
+.cx-sub .cx-up{color:var(--ok,#3ddc97)}
+.cx-nota{margin:8px 0 0;font-size:11.5px;line-height:1.6;color:var(--mut,#6f7e8a)}
+@keyframes cxgrow{from{transform:scaleX(0)}}
+@media(max-width:640px){.cx-kpis{grid-template-columns:repeat(2,1fr)}}
+@media(prefers-reduced-motion:reduce){.cx-fill{animation:none}}
+</style>
+<script>
+(function(){
+  var brl=function(n){return n==null||!isFinite(n)?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})};
+  var card=document.getElementById('cxCard');if(!card)return;
+  function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+  function pintar(cx,quando){
+    if(!cx||!cx.quantidade||!cx.itens||!cx.itens.length){card.hidden=true;return}
+    document.getElementById('cxTotal').textContent=brl(cx.total);
+    document.getElementById('cxMes').textContent=cx.rendMes==null?'—':'+'+brl(cx.rendMes);
+    document.getElementById('cxAno').textContent=cx.rendAno==null?'—':'+'+brl(cx.rendAno);
+    document.getElementById('cxPct').textContent=cx.pctCdiMedio==null?'—':Math.round(cx.pctCdiMedio)+'%';
+    var maior=Math.max.apply(null,cx.itens.map(function(i){return i.saldo}))||1;
+    var box=document.getElementById('cxBarras');box.textContent='';
+    cx.itens.slice().sort(function(a,b){return b.saldo-a.saldo}).forEach(function(i){
+      var lin=el('div','cx-lin'),topo=el('div','cx-topo'),esq=el('div');
+      esq.style.cssText='display:flex;align-items:baseline;min-width:0';
+      esq.appendChild(el('span','cx-nome',i.nome));esq.appendChild(el('span','cx-chip',i.pctCdi+'% CDI'));
+      topo.appendChild(esq);topo.appendChild(el('span','cx-val',brl(i.saldo)));
+      var tr=el('div','cx-trilho'),fl=el('div','cx-fill');fl.style.width=Math.max(2,100*i.saldo/maior)+'%';tr.appendChild(fl);
+      var sub=el('div','cx-sub');sub.appendChild(el('span',null,cx.total>0?(100*i.saldo/cx.total).toFixed(0)+'% do total':''));
+      sub.appendChild(el('span','cx-up',i.rendMes==null?'':'+'+brl(i.rendMes)+' / mês'));
+      lin.appendChild(topo);lin.appendChild(tr);lin.appendChild(sub);box.appendChild(lin)});
+    var d=quando?new Date(quando):null;
+    document.getElementById('cxNota').textContent='*Estimativa com o CDI de hoje'+(cx.cdiAnual!=null?' ('+(100*cx.cdiAnual).toFixed(2).replace('.',',')+'% ao ano)':'')+', antes do imposto de renda. Não é promessa. Atualizado '+(d&&!isNaN(d)?d.toLocaleDateString('pt-BR'):'—')+'. Para mudar, edite em Trader Bit › Caixinhas.';
+    card.hidden=false}
+  var busy=false;
+  function carregar(){return carregarAsync()}
+  async function carregarAsync(){
+    if(busy||typeof token!=='function'||typeof SB==='undefined'||typeof SBK==='undefined')return Promise.resolve();
+    busy=true;
+    try{
+      var at=await token();if(!at){card.hidden=true;return}
+      var r=await fetch(SB+'/rest/v1/rockefeller_parecer?select=data',{headers:{apikey:SBK,Authorization:'Bearer '+at}});
+      if(!r.ok){card.hidden=true;return}
+      var rows=await r.json(),p=rows[0]&&rows[0].data;
+      pintar(p&&p.caixinhas,p&&p.geradoEm)
+    }catch(e){card.hidden=true}finally{busy=false}}
+  var tent=0;
+  function inicial(){carregar().then(function(){if(card.hidden&&++tent<4)setTimeout(inicial,3000)})}
+  if(document.readyState==='complete')inicial();else window.addEventListener('load',inicial);
+  window.addEventListener('focus',carregar);
+  document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-t="invest"]');if(b)setTimeout(carregar,50)});
+})();
+</script>
+<!-- ===== fim do bloco de caixinhas ===== -->
