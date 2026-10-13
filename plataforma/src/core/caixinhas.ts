@@ -60,16 +60,19 @@ export type ResumoCaixinhas = {
   rendMes: number | null;
   rendAno: number | null;
   cdiAnual: number | null;
+  /** Cada caixinha com o rendimento estimado por mês (null sem CDI). Usado no gráfico do Rockefeller. */
+  itens: { nome: string; pctCdi: number; saldo: number; rendMes: number | null }[];
 };
 
 export function resumir(lista: Caixinha[], cdiAnual: number | null): ResumoCaixinhas {
   const total = lista.reduce((s, c) => s + c.saldo, 0);
   const pctCdiMedio = total > 0 ? lista.reduce((s, c) => s + c.saldo * c.pctCdi, 0) / total : null;
-  if (cdiAnual == null) return { quantidade: lista.length, total, pctCdiMedio, rendMes: null, rendAno: null, cdiAnual: null };
+  const itens = lista.map((c) => ({ nome: c.nome, pctCdi: c.pctCdi, saldo: c.saldo, rendMes: cdiAnual == null ? null : rendimento(c, cdiAnual).mes }));
+  if (cdiAnual == null) return { quantidade: lista.length, total, pctCdiMedio, rendMes: null, rendAno: null, cdiAnual: null, itens };
   const r = lista.map((c) => rendimento(c, cdiAnual));
   return {
     quantidade: lista.length, total, pctCdiMedio,
-    rendMes: r.reduce((s, x) => s + x.mes, 0), rendAno: r.reduce((s, x) => s + x.ano, 0), cdiAnual,
+    rendMes: r.reduce((s, x) => s + x.mes, 0), rendAno: r.reduce((s, x) => s + x.ano, 0), cdiAnual, itens,
   };
 }
 

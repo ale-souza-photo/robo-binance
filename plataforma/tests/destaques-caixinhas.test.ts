@@ -132,7 +132,10 @@ describe("caixinhas", () => {
     expect(r.total).toBe(4000);
     expect(r.pctCdiMedio).toBeCloseTo(105, 10);
     expect(r.rendMes).toBeGreaterThan(0);
+    expect(r.itens.map((i) => i.nome)).toEqual(["A", "B"]);
+    expect(r.itens.reduce((a, i) => a + (i.rendMes ?? 0), 0)).toBeCloseTo(r.rendMes!, 10);
     const sem = resumir(l, null);
+    expect(sem.itens.every((i) => i.rendMes === null)).toBe(true);
     expect(sem.rendMes).toBeNull();
     expect(fraseResumo(sem)).not.toMatch(/por mês/);
     expect(fraseResumo(r)).toMatch(/2 caixinhas somam R\$ 4\.000,00.*105% do CDI.*por mês.*antes do imposto/);
